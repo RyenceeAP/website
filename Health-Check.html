@@ -1,0 +1,604 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AP Health Check</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column. Name bar, load panel, three summary tiles that double as tabs, the active report, then a "book a call" band. */
+:root{
+  --bg:#f2f4f7; --surface:#ffffff; --fg:#17202e; --muted:#5d6879; --line:#d9dee6;
+  --accent:#2f5bd3; --onaccent:#ffffff; --high:#c0392b; --med:#b26a00; --low:#5d6879; --tint:#eef2fb;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151d; --surface:#18202b; --fg:#e5eaf1; --muted:#97a2b3; --line:#2a3442;
+  --accent:#7d9cf0; --onaccent:#0f1622; --high:#f0857a; --med:#e7ad4f; --low:#97a2b3; --tint:#1d2738; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151d; --surface:#18202b; --fg:#e5eaf1; --muted:#97a2b3; --line:#2a3442;
+  --accent:#7d9cf0; --onaccent:#0f1622; --high:#f0857a; --med:#e7ad4f; --low:#97a2b3; --tint:#1d2738; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 48px}
+main{max-width:820px;margin:0 auto;display:grid;gap:18px}
+.topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.who{display:flex;gap:10px;align-items:center;min-width:0}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--onaccent);display:grid;place-items:center;font-weight:700;font-size:.85rem;flex:none}
+.who b{display:block;font-size:.95rem}.who span{display:block;font-size:.8rem;color:var(--muted)}
+h1{font-size:1.65rem;margin:0;font-weight:700;text-wrap:balance}
+h2{font-size:1.2rem;margin:0;text-wrap:balance}
+.lede{margin:4px 0 0;color:var(--muted);max-width:64ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px}
+.drop{border:2px dashed var(--line);border-radius:8px;padding:18px;text-align:center;display:grid;gap:8px;justify-items:center;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);background:var(--tint)}
+.drop p{margin:0;color:var(--muted);font-size:.88rem}
+.btn{font:600 .9rem var(--sans);border:1px solid var(--accent);background:var(--accent);color:var(--onaccent);border-radius:6px;padding:8px 14px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.sm{padding:5px 10px;font-size:.82rem}
+.btn:focus-visible,select:focus-visible,input:focus-visible,.tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.private{font-size:.82rem;color:var(--muted);margin:0}.private b{color:var(--fg);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.fld{display:grid;gap:4px;font-size:.74rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:0}
+select,input[type=number]{font:400 .92rem var(--sans);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 8px;min-width:0;width:100%}
+.source{font-size:.85rem;color:var(--muted);margin:0}
+.tag{display:inline-block;font-size:.72rem;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--tint);color:var(--accent);margin-left:6px}
+.err{color:var(--high);font-size:.9rem;margin:0}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:600px){.tiles{grid-template-columns:1fr}}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px;border-top:3px solid transparent}
+.tile[aria-selected="true"]{border-top-color:var(--accent);background:var(--tint)}
+.tile .t{font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tile b{font:500 1.35rem var(--mono);font-variant-numeric:tabular-nums}
+[data-body]{min-width:0}
+.ver{font-size:.82rem;color:var(--muted);margin:2px 0 0}.ver a{color:inherit}
+#history td:first-child{white-space:nowrap}
+.tile .s{font-size:.8rem;color:var(--muted)}
+.tile.alert b{color:var(--high)}
+.report{display:grid;gap:12px}
+.rhead{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between}
+.rhead p{margin:2px 0 0;color:var(--muted);font-size:.88rem;max-width:60ch}
+.cards{display:grid;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--low);border-radius:6px 10px 10px 6px;padding:14px;display:grid;gap:10px}
+.card.high{border-left-color:var(--high)}.card.med{border-left-color:var(--med)}
+.card.done{opacity:.55}
+.chead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.chead .l{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.vname{font-weight:600}
+.pill{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.high .pill,.pill.high{color:var(--high)}.med .pill,.pill.med{color:var(--med)}.low .pill,.pill.low{color:var(--low)}
+.money{font:500 .95rem var(--mono);font-variant-numeric:tabular-nums}
+.reasons{margin:0;padding-left:18px;font-size:.9rem;display:grid;gap:2px}
+.reasons .sev3::marker{color:var(--high)}.reasons .sev2::marker{color:var(--med)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:tabular-nums;min-width:440px}
+th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:4px 10px 4px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 10px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+td.num,th.num{text-align:right}td.num,td.mono{font-family:var(--mono)}
+tr.stopped td{color:var(--muted)}
+.check{display:flex;gap:6px;align-items:center;font-size:.85rem;color:var(--muted);cursor:pointer}
+.more{justify-content:center}
+.empty{text-align:center;color:var(--muted);padding:24px 8px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.note{font-size:.82rem;color:var(--muted);margin:0;max-width:72ch}
+.cta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--tint);border-radius:10px;padding:12px 14px}
+.cta p{margin:0;font-weight:500}
+.book{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;grid-template-columns:1.35fr 1fr;gap:22px;scroll-margin-top:16px}
+@media (max-width:640px){.book{grid-template-columns:1fr}}
+.book > div{min-width:0;display:grid;gap:10px;align-content:start}
+.book p{margin:0}
+.book ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.contact{background:var(--tint);border-radius:10px;padding:16px;display:grid;gap:12px;align-content:start}
+.contact .k{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.contact .v{font:500 .95rem var(--mono);user-select:all;overflow-wrap:anywhere}
+.cline{display:grid;gap:2px}
+.cline .row{justify-content:space-between;flex-wrap:nowrap}
+footer{font-size:.78rem;color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<main>
+  <div class="topbar">
+    <div class="who"><div class="avatar" id="initials" aria-hidden="true"></div><div><b id="hName"></b><span id="hRole"></span></div></div>
+    <a class="btn sm" href="#book">Book a free call</a>
+  </div>
+
+  <header>
+    <h1>AP Health Check</h1>
+    <p class="ver"><a href="#history">Version 0.5</a> · November 9, 2026</p>
+    <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
+  </header>
+
+  <section class="panel" aria-label="Load your bills">
+    <div class="drop" id="drop">
+      <strong>Drop your bill list here (Excel or CSV)</strong>
+      <p>Export it from QuickBooks, Xero or your spreadsheet, with one bill per row</p>
+      <div class="row">
+        <label class="btn" for="file">Choose file</label>
+        <input id="file" type="file" accept=".csv,.xlsx,.xls" hidden>
+        <button class="btn ghost" type="button" id="sample">Load sample data</button>
+      </div>
+    </div>
+    <p class="private"><b>Your file stays on this device.</b> Everything runs in your browser. Nothing is uploaded or sent to anyone.</p>
+    <p class="source" id="source"></p>
+    <p class="err" id="err" hidden></p>
+    <div class="grid" id="map"></div>
+  </section>
+
+  <div class="tiles" role="tablist" aria-label="Reports">
+    <button class="tile" role="tab" id="tab-duplicates" data-tab="duplicates" aria-controls="p-duplicates"><span class="t">Duplicate bills</span><b id="tDup">$0</b><span class="s" id="tDupS">possibly paid twice</span></button>
+    <button class="tile" role="tab" id="tab-red-flags" data-tab="red-flags" aria-controls="p-red-flags"><span class="t">Fraud red flags</span><b id="tFr">0</b><span class="s" id="tFrS">vendors to look at</span></button>
+    <button class="tile" role="tab" id="tab-recurring" data-tab="recurring" aria-controls="p-recurring"><span class="t">Recurring charges</span><b id="tRc">$0</b><span class="s" id="tRcS">per year</span></button>
+  </div>
+
+  <section class="report" id="p-duplicates" role="tabpanel" aria-labelledby="tab-duplicates">
+    <div class="rhead"><div><h2>Duplicate bills</h2><p>Bills that look like they were entered or paid twice. Worst first.</p></div></div>
+    <div class="grid">
+      <label class="fld" for="win">Same amount within (days)<input id="win" type="number" min="0" max="365" value="10"></label>
+      <label class="fld" for="sim">Vendor name matching<select id="sim"><option value="0.92">Strict</option><option value="0.85" selected>Normal</option><option value="0.75">Loose</option></select></label>
+    </div>
+    <div class="cards" id="dupOut"></div>
+    <p class="note">Recurring bills can show up if they fall inside the day window, so keep it under a month. A flag means "check this," not "this is wrong."</p>
+  </section>
+
+  <section class="report" id="p-red-flags" role="tabpanel" aria-labelledby="tab-red-flags" hidden>
+    <div class="rhead"><div><h2>Fraud red flags</h2><p>Patterns auditors look for when vendors or invoices are fake. Most flags have an innocent explanation, so treat them as questions to ask.</p></div></div>
+    <div class="grid">
+      <label class="fld" for="limit">Your approval limit ($)<input id="limit" type="number" min="0" step="100" value="10000"></label>
+      <label class="fld" for="bigFirst">Large first bill from a new vendor ($)<input id="bigFirst" type="number" min="0" step="100" value="5000"></label>
+    </div>
+    <div class="panel" style="gap:8px">
+      <div class="row" style="justify-content:space-between">
+        <div><strong>Add your vendor list (optional)</strong><p class="note">With addresses, phone numbers and bank accounts, it also checks for vendors that share details.</p></div>
+        <label class="btn ghost sm" for="vfile">Choose vendor list</label>
+        <input id="vfile" type="file" accept=".csv,.xlsx,.xls" hidden>
+      </div>
+      <p class="source" id="vsource">No vendor list loaded.</p>
+      <p class="err" id="verr" hidden></p>
+    </div>
+    <div class="cards" id="frOut"></div>
+  </section>
+
+  <section class="report" id="p-recurring" role="tabpanel" aria-labelledby="tab-recurring" hidden>
+    <div class="rhead"><div><h2>Recurring charges</h2><p>Bills that repeat on a schedule, with what each costs per year. Check that every one is still needed, and look hard at any that went up.</p></div></div>
+    <div class="grid">
+      <label class="fld" for="creep">Flag price increases over (%)<input id="creep" type="number" min="0" max="100" value="5"></label>
+    </div>
+    <div id="rcOut"></div>
+    <p class="note">Per-year cost uses the latest amount. Charges that haven't appeared recently are marked "may have stopped" and left out of the yearly total.</p>
+  </section>
+
+  <div class="cta">
+    <p>Found something you'd like a second pair of eyes on?</p>
+    <div class="row"><button class="btn ghost sm" type="button" id="copy">Copy full report</button><a class="btn sm" href="#book">Book a free call</a></div>
+  </div>
+
+  <section class="book" id="book" aria-labelledby="bookH">
+    <div>
+      <h2 id="bookH">Book a free 30-minute call</h2>
+      <p id="bio"></p>
+      <p><strong>On the call we'll:</strong></p>
+      <ul>
+        <li>Go through what this check found, line by line</li>
+        <li>Work out which flags are real problems and how to get money back</li>
+        <li>Set up simple habits so it doesn't happen again</li>
+      </ul>
+      <p class="note">No cost and no obligation. If you'd like ongoing help afterwards, I offer monthly accounts payable support for small businesses.</p>
+    </div>
+    <div class="contact">
+      <div class="cline"><span class="k">Name</span><span class="v" id="cName" style="user-select:text"></span></div>
+      <div class="cline"><span class="k">Email</span><div class="row"><span class="v" id="cEmail"></span><button class="btn ghost sm" type="button" id="copyEmail">Copy</button></div></div>
+      <div class="cline" id="phoneLine"><span class="k">Phone</span><span class="v" id="cPhone"></span></div>
+      <div class="cline"><span class="k">Based in</span><span class="v" id="cLoc" style="user-select:text;font-family:var(--sans)"></span></div>
+      <a class="btn" id="bookBtn" href="#" target="_blank" rel="noopener">Pick a time</a>
+      <p class="note" id="bookHint">Email me with a couple of times that work, and I'll send a calendar invite.</p>
+    </div>
+  </section>
+
+  <footer>The AP Health Check flags patterns worth reviewing. It isn't an audit and doesn't confirm fraud or errors.</footer>
+  <details id="history" class="panel"><summary style="cursor:pointer;font-weight:600">Version history</summary><div class="tablewrap"><table style="min-width:0"><thead><tr><th>Version</th><th>Changes</th></tr></thead><tbody>
+    <tr><td class="mono">0.5</td><td>Much faster on large bill lists (100,000+ bills). The duplicate check only compares bills that share an amount or an invoice number. Findings are shown 50 at a time with a Show more button, and each finding lists its first 100 bills (Copy full report still includes everything). A "Reading file" message shows while a large file opens.</td></tr>
+    <tr><td class="mono">0.4</td><td>Spreadsheets with title rows above the table, merged header cells, several tabs or very wide formatting are read correctly, and totals rows are skipped. The duplicate check also catches the same invoice number written with or without a "-00" ending or a letter prefix. The bills on each finding can be hidden or shown, with hide all and show all. Settings recalculate once you stop typing. Version number and history added.</td></tr>
+    <tr><td class="mono">0.3</td><td>Booking link updated to a 30-minute call.</td></tr>
+    <tr><td class="mono">0.2</td><td>Contact details and booking link added.</td></tr>
+    <tr><td class="mono">0.1</td><td>First version: duplicate bills, fraud red flags and recurring charges from one bill export, with a book-a-call section.</td></tr>
+  </tbody></table></div></details>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* ===== Edit your details here ===== */
+const CONFIG={
+  name:"Ryan Carrillo",
+  role:"Accounts payable specialist",
+  location:"Canada",
+  email:"ryancarrillo613@gmail.com",
+  phone:"613-618-8144",
+  bookingUrl:"https://cal.com/ryan-carrillo-3ljd4a/30min",
+  bio:"I work in accounts payable every day: entering bills, chasing approvals, reconciling vendor statements and catching the mistakes that cost businesses money. I help small businesses keep their payables clean and their payment runs safe."
+};
+/* ================================== */
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money=n=>(n<0?"−$":"$")+Math.abs(n).toLocaleString("en-CA",{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0=n=>"$"+Math.round(Math.abs(n)).toLocaleString("en-CA");
+const pad=n=>String(n).padStart(2,"0");
+const fmtD=d=>d?`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`:"";
+const DAY=864e5;
+
+/* ---------- branding ---------- */
+(function brand(){
+  const ini=CONFIG.name.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+  $("initials").textContent=ini||"AP";
+  $("hName").textContent=CONFIG.name;$("hRole").textContent=CONFIG.role;
+  $("cName").textContent=CONFIG.name;$("cEmail").textContent=CONFIG.email;$("cLoc").textContent=CONFIG.location;
+  $("bio").textContent=CONFIG.bio;
+  if(CONFIG.phone)$("cPhone").textContent=CONFIG.phone;else $("phoneLine").hidden=true;
+  if(CONFIG.bookingUrl){$("bookBtn").href=CONFIG.bookingUrl;$("bookHint").hidden=true}else $("bookBtn").hidden=true;
+})();
+function flash(btn,txt,orig){btn.textContent=txt;setTimeout(()=>btn.textContent=orig,1600)}
+function copyText(txt,btn,orig){
+  try{navigator.clipboard.writeText(txt).then(()=>flash(btn,"Copied",orig)).catch(()=>flash(btn,"Copy blocked here",orig))}
+  catch(e){flash(btn,"Copy blocked here",orig)}
+}
+$("copyEmail").addEventListener("click",e=>copyText(CONFIG.email,e.currentTarget,"Copy"));
+
+/* ---------- parsing ---------- */
+const ROLES=[["date","Date",/date/i],["amount","Amount",/amount|total|balance|amt|debit/i],["inv","Invoice / bill number",/invoice|inv\b|inv\.|ref|bill\s*(no|#|num)|doc(ument)?\s*(no|#|num)|^no\.?$|^num|number/i],["vendor","Vendor",/vendor|supplier|payee|name|contact/i]];
+const VROLES=[["bank",/bank|account|acct|transit|iban/i],["phone",/phone|tel\b|telephone|mobile/i],["addr",/address|street|addr/i],["vendor",/vendor|supplier|payee|name|company/i]];
+let table=null,headers=[],mapping={},rowBase=2,vendors=[],vendorsSample=false;
+const reviewed=new Set();
+let R={dup:[],fr:[],rc:[]};
+
+function headerRow(rows,roles){
+  for(let i=0;i<Math.min(rows.length,80);i++){
+    const r=(rows[i]||[]).map(c=>String(c??""));let hits=0;
+    roles.forEach(x=>{const re=x[x.length-1];if(r.some(c=>re.test(c)))hits++});
+    if(hits>=2)return i;
+  }
+  return -1;
+}
+function amt(v){if(typeof v==="number")return v;let s=String(v??"").trim();if(!s)return NaN;const neg=/^\(.*\)$/.test(s)||s.startsWith("-");s=s.replace(/[^0-9.]/g,"");const n=parseFloat(s);return neg?-n:n}
+function dt(v){
+  if(v instanceof Date&&!isNaN(v))return new Date(v.getFullYear(),v.getMonth(),v.getDate());
+  if(typeof v==="number"&&v>20000&&v<80000){const u=new Date(Math.round((v-25569)*DAY));return new Date(u.getUTCFullYear(),u.getUTCMonth(),u.getUTCDate())}
+  const s=String(v??"").trim();if(!s)return null;
+  let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);if(m)return new Date(+m[1],m[2]-1,+m[3]);
+  m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if(m){let y=+m[3];if(y<100)y+=2000;let a=+m[1],b=+m[2];if(a>12)[a,b]=[b,a];return new Date(y,a-1,b)}
+  const p=Date.parse(s);if(isNaN(p))return null;const d=new Date(p);return new Date(d.getFullYear(),d.getMonth(),d.getDate());
+}
+const SUFFIX=/\b(limited|ltd|incorporated|inc|corporation|corp|company|co|llc|llp|lp|ulc|the)\b/g;
+const vKey=v=>String(v??"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9 ]+/g,"").replace(SUFFIX," ").replace(/\s+/g,"");
+const digKey=k=>{const d=String(k||"").replace(/[-\s]00$/,"").replace(/\D/g,"").replace(/^0+/,"");return d.length>=6?d:""};
+function iKey(v){let s=String(v??"").toUpperCase().trim().replace(/[-\s]00$/,"").replace(/[^A-Z0-9]/g,"");s=s.replace(/^(INVOICE|INV|NO|BILL)/,"");return s.replace(/^0+(?=\d)/,"")}
+function aKey(s){s=String(s??"").toLowerCase().replace(/[.,#]/g," ").replace(/\bstreet\b/g,"st").replace(/\bavenue\b/g,"ave").replace(/\broad\b/g,"rd").replace(/\bboulevard\b/g,"blvd").replace(/\bdrive\b/g,"dr").replace(/\b(suite|unit|apt|ste)\b/g," ");const t=s.split(/\s+/).filter(Boolean);return t.length>=3?t.sort().join(" "):""}
+const digits=s=>String(s??"").replace(/\D/g,"");
+function lev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
+const sim=(a,b)=>!a||!b?0:a===b?1:1-lev(a,b)/Math.max(a.length,b.length);
+function groupBy(arr,f){const m=new Map();arr.forEach(x=>{const k=f(x);if(!m.has(k))m.set(k,[]);m.get(k).push(x)});return m}
+
+function showErr(id,m){$(id).textContent=m;$(id).hidden=false}
+function loadRows(rows,label,isSample){
+  $("err").hidden=true;
+  const hi=headerRow(rows,ROLES);
+  if(hi<0||rows.length<hi+2){showErr("err","Couldn't find the bill columns. Make sure the file has a header row with names like Date, Vendor, Invoice and Amount.");return}
+  headers=rows[hi].map((c,i)=>String(c??"").trim()||"Column "+(i+1));
+  table=rows.slice(hi+1);rowBase=hi+2;
+  mapping={};const used=new Set();
+  ROLES.forEach(([k,,re])=>{const i=headers.findIndex((x,j)=>!used.has(j)&&re.test(x));if(i>=0){mapping[k]=i;used.add(i)}});
+  snapCols(rows,hi,headers,mapping);
+  reviewed.clear();Bc=null;SHOWN.dup=SHOWN.fr=STEP;SHOWN.rc=STEP*4;
+  if(!isSample&&vendorsSample){vendors=[];vendorsSample=false;$("vsource").textContent="No vendor list loaded."}
+  $("source").innerHTML=`${esc(label)} · ${table.filter(r=>r&&r.some(c=>String(c??"").trim())).length} rows`+(isSample?'<span class="tag">Example data</span>':"");
+  $("map").innerHTML=ROLES.map(([k,l])=>`<label class="fld" for="m_${k}">${l} column<select id="m_${k}" data-k="${k}"><option value="">Not in file</option>${headers.map((h,i)=>`<option value="${i}"${mapping[k]===i?" selected":""}>${esc(h)}</option>`).join("")}</select></label>`).join("");
+  $("map").querySelectorAll("select").forEach(s=>s.addEventListener("change",()=>{mapping[s.dataset.k]=s.value===""?undefined:+s.value;Bc=null;run()}));
+  run();
+}
+function loadVendors(rows,label,isSample){
+  $("verr").hidden=true;
+  const hi=headerRow(rows,VROLES);
+  if(hi<0){showErr("verr","Couldn't find the columns in that vendor list. It needs a header row with Vendor plus Address, Phone or Bank account.");return}
+  const h=rows[hi].map(c=>String(c??""));const m={},used=new Set();
+  VROLES.forEach(([k,re])=>{const i=h.findIndex((x,j)=>!used.has(j)&&re.test(x));if(i>=0){m[k]=i;used.add(i)}});
+  if(m.vendor===undefined){showErr("verr","Couldn't find a vendor name column in that file.");return}
+  const g=(r,k)=>m[k]===undefined?"":String(r[m[k]]??"").trim();
+  vendors=rows.slice(hi+1).map(r=>({name:g(r,"vendor"),addr:g(r,"addr"),phone:g(r,"phone"),bank:g(r,"bank")})).filter(v=>v.name).map(v=>{
+    const p=digits(v.phone),b=digits(v.bank);
+    return{...v,vk:vKey(v.name),aKey:aKey(v.addr),pKey:p.length>=10?p.slice(-10):"",bKey:b.length>=7?b:"",po:/\bp\.?\s*o\.?\s*box\b|post office box/i.test(v.addr)};
+  });
+  vendorsSample=isSample;
+  const cols=[["addr","addresses"],["phone","phone numbers"],["bank","bank accounts"]].filter(([k])=>m[k]!==undefined).map(x=>x[1]);
+  $("vsource").innerHTML=`${esc(label)} · ${vendors.length} vendors · checking ${cols.join(", ")||"names only"}`+(isSample?'<span class="tag">Example data</span>':"");
+  run();
+}
+/* merged header cells often sit a column or two off their values: use the nearby column that actually holds the data */
+function snapCols(rows,hi,headers,map){
+  const data=rows.slice(hi+1,hi+601).filter(r=>r&&r.some(c=>c!==""&&c!=null));if(!data.length)return;
+  const filled=j=>data.reduce((n,r)=>n+(r[j]!==""&&r[j]!=null?1:0),0),used=new Set(Object.values(map).filter(v=>v!==undefined));
+  Object.entries(map).forEach(([k,j])=>{if(j===undefined)return;const f=filled(j);if(f>=Math.max(3,data.length*0.2))return;
+    let best=null;for(let d=-3;d<=3;d++){const c=j+d;if(!d||c<0||used.has(c))continue;const fc=filled(c);if(fc>f&&(!best||fc>best.fc||(fc===best.fc&&Math.abs(d)<Math.abs(best.d))))best={c,fc,d}}
+    if(best){used.delete(j);used.add(best.c);map[k]=best.c;if(!String(headers[best.c]||"").trim()||/^Column \d+$/.test(headers[best.c]))headers[best.c]=headers[j]}});
+}
+/* ignore formatting that stretches a sheet to thousands of empty columns, and pick the first tab with a header row */
+function trimWs(w){if(!w||w.__trim)return;let R=0,C=0;for(const k in w){if(k[0]==="!")continue;const c=w[k];if(c==null||c.v===undefined||c.v==="")continue;const a=XLSX.utils.decode_cell(k);if(a.r>R)R=a.r;if(a.c>C)C=a.c}w["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:R,c:Math.min(C,80)}});w.__trim=true}
+function pickSheet(wb,roles){for(const n of wb.SheetNames){const w=wb.Sheets[n];trimWs(w);const rg=XLSX.utils.decode_range(w["!ref"]);rg.e.r=Math.min(rg.e.r,80);if(headerRow(XLSX.utils.sheet_to_json(w,{header:1,raw:true,defval:"",blankrows:true,range:rg}),roles)>=0)return w}const w=wb.Sheets[wb.SheetNames[0]];trimWs(w);return w}
+function readFile(f,cb,roles){
+  if(!f)return;
+  if(typeof XLSX==="undefined"){showErr("err","The spreadsheet reader didn't load. Check your internet connection and reload the page.");return}
+  const st=roles===VROLES?$("vsource"):$("source");st.textContent=`Reading ${f.name}…`;
+  const r=new FileReader();
+  r.onload=e=>setTimeout(()=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
+    const ws=pickSheet(wb,roles||ROLES);cb(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:"",blankrows:true}),f.name)}
+    catch(err){showErr("err","Couldn't read that file. Save it as .xlsx or .csv and try again.")}},30);
+  r.readAsArrayBuffer(f);
+}
+function bills(){
+  const get=(r,k)=>mapping[k]===undefined?"":r[mapping[k]];
+  return table.map((r,i)=>{
+    if(!r)return null;
+    const vendor=String(get(r,"vendor")??"").trim(),inv=String(get(r,"inv")??"").trim(),a=amt(get(r,"amount"));
+    const m=inv.match(/(\d+)(?!.*\d)/),d=dt(get(r,"date"));
+    if(!vendor&&!inv&&!d)return null; /* totals rows */
+    return{row:rowBase+i,vendor,inv,amt:a,date:d,vk:vKey(vendor),ik:iKey(inv),dk:digKey(inv),invNum:m?parseInt(m[1],10):null,cents:Math.round(a*100)};
+  }).filter(b=>b&&isFinite(b.amt)&&b.amt!==0);
+}
+
+/* ---------- 1. duplicates ---------- */
+function findDuplicates(B){
+  /* Only bills that share an amount or an invoice number can match, so compare inside those groups
+     instead of every bill against every other one (107,000 bills = billions of pairs). */
+  const win=Math.max(0,+$("win").value||0),thr=+$("sim").value,N=B.length;
+  const parent=B.map((_,i)=>i),find=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i]}return i};
+  const edges=[],seen=new Set(),simC=new Map();
+  const vsim=(x,y)=>{if(!x||!y)return 0;if(x===y)return 1;const k=x<y?x+"|"+y:y+"|"+x;let v=simC.get(k);
+    if(v===undefined){const la=x.length,lb=y.length;v=1-Math.abs(la-lb)/Math.max(la,lb)<thr?0:sim(x,y);simC.set(k,v)}return v};
+  const pair=(i,j)=>{if(i===j)return;if(i>j){const t=i;i=j;j=t}const key=i*N+j;if(seen.has(key))return;seen.add(key);
+    const a=B[i],b=B[j];
+    const sameAmt=a.cents===b.cents,sameInv=(a.ik&&a.ik===b.ik)||(a.dk&&a.dk===b.dk);
+    if(!sameAmt&&!sameInv)return;
+    const vend=(a.vk&&a.vk===b.vk)||vsim(a.vk,b.vk)>=thr;
+    const days=a.date&&b.date?Math.round(Math.abs(a.date-b.date)/DAY):null;
+    let sev=0,why="";
+    if(vend&&sameInv&&sameAmt){sev=3;why="Same invoice number and amount from the same vendor"}
+    else if(vend&&sameInv){sev=2;why="Same invoice number from the same vendor, but the amounts differ"}
+    else if(vend&&sameAmt&&days!==null&&days<=win){const both=a.ik&&b.ik;sev=both?1:2;why=`Same amount from the same vendor ${days===0?"on the same day":days+" day"+(days===1?"":"s")+" apart"}`+(both?", with different invoice numbers":"")}
+    else if(!vend&&sameInv&&sameAmt&&a.ik.length>=3){sev=1;why="Same invoice number and amount under two different vendor names"}
+    if(sev){edges.push([i,j,sev,why]);parent[find(i)]=find(j)}};
+  const allPairs=L=>{for(let x=0;x<L.length;x++)for(let y=x+1;y<L.length;y++)pair(L[x],L[y])};
+  /* same invoice number: every pair in small groups; in very large groups, pairs with the same vendor or the same amount */
+  const invGroup=L=>{if(L.length<2)return;if(L.length<=400){allPairs(L);return}
+    groupBy(L,i=>B[i].vk).forEach(allPairs);groupBy(L,i=>B[i].cents).forEach(allPairs)};
+  groupBy(B.map((_,i)=>i).filter(i=>B[i].ik),i=>B[i].ik).forEach(invGroup);
+  groupBy(B.map((_,i)=>i).filter(i=>B[i].dk),i=>B[i].dk).forEach(invGroup);
+  /* same amount: only dated bills within the day window can match */
+  groupBy(B.map((_,i)=>i).filter(i=>B[i].date),i=>B[i].cents).forEach(L=>{if(L.length<2)return;
+    L.sort((x,y)=>B[x].date-B[y].date);const lim=(win+0.5)*DAY;
+    for(let x=0;x<L.length;x++){const d0=+B[L[x]].date;for(let y=x+1;y<L.length&&B[L[y]].date-d0<=lim;y++)pair(L[x],L[y])}});
+  const gm=new Map();
+  edges.forEach(([i,j,sev,why])=>{const r=find(i);if(!gm.has(r))gm.set(r,{idx:new Set(),sev:0,why:new Set()});const g=gm.get(r);g.idx.add(i);g.idx.add(j);g.sev=Math.max(g.sev,sev);g.why.add(why)});
+  return[...gm.values()].map(g=>{
+    const rows=[...g.idx].map(i=>B[i]).sort((x,y)=>(x.date||0)-(y.date||0)||x.row-y.row);
+    const names=new Set(rows.map(r=>r.vendor).filter(Boolean));
+    if(names.size>1&&g.sev>=2)g.why.add(`This vendor appears under ${names.size} different names`);
+    const total=rows.reduce((s,r)=>s+r.amt,0),max=rows.reduce((m,r)=>Math.max(m,r.amt),-Infinity);
+    return{rows,sev:g.sev,why:[...g.why].map(t=>({t,s:g.sev})),risk:g.sev>=2?total-max:0,key:"d"+rows.map(r=>r.row).join("-"),name:rows[0].vendor};
+  }).sort((a,b)=>b.sev-a.sev||b.risk-a.risk);
+}
+
+/* ---------- 2. fraud red flags ---------- */
+function findRedFlags(B){
+  const limit=Math.max(0,+$("limit").value||0),big=Math.max(0,+$("bigFirst").value||0);
+  const dated=B.filter(b=>b.date),start=dated.length?dated.reduce((m,b)=>Math.min(m,+b.date),Infinity):null;
+  const F=new Map();
+  const add=(vk,name,sev,t,rows=[])=>{if(!F.has(vk))F.set(vk,{vk,name,why:[],rows:new Set(),total:0,sev:0});const f=F.get(vk);if(!f.name)f.name=name;f.sev=Math.max(f.sev,sev);if(!f.why.some(w=>w.t===t))f.why.push({t,s:sev});rows.forEach(r=>f.rows.add(r))};
+  const byV=groupBy(B.filter(b=>b.vk),b=>b.vk);
+  byV.forEach((list,vk)=>{
+    list.sort((a,b)=>(a.date||0)-(b.date||0));
+    const name=list[0].vendor;
+    const fixed=list.length>=2&&list.every(b=>b.cents===list[0].cents);
+    if(limit){
+      list.filter(b=>b.amt>=limit*0.9&&b.amt<limit).forEach(b=>add(vk,name,2,`${money(b.amt)} is just under your ${money0(limit)} approval limit`,[b]));
+      const d=list.filter(b=>b.date);
+      for(let i=0;i<d.length;){
+        let j=i;while(j+1<d.length&&(d[j+1].date-d[i].date)/DAY<=3)j++;
+        const c=d.slice(i,j+1),sum=c.reduce((s,b)=>s+b.amt,0);
+        if(c.length>=2&&sum>=limit&&c.every(b=>b.amt<limit))add(vk,name,3,`${c.length} bills within 3 days add up to ${money(sum)}, over your approval limit, but each one is under it`,c);
+        i=j+1;
+      }
+    }
+    const first=list.find(b=>b.date);
+    if(big&&first&&start&&(first.date-start)/DAY>30&&first.amt>=big)add(vk,name,2,`New vendor whose first bill was ${money(first.amt)} (first seen ${fmtD(first.date)})`,[first]);
+    const nums=[...new Set(list.map(b=>b.invNum).filter(n=>n!==null))].sort((a,b)=>a-b);
+    if(nums.length>=3&&nums[nums.length-1]-nums[0]<=(nums.length-1)*2)add(vk,name,2,`Invoice numbers run almost in order (${nums[0]} to ${nums[nums.length-1]}), so you may be this vendor's only customer`,list.filter(b=>b.invNum!==null));
+    if(!fixed){
+      const round=list.filter(b=>b.amt>=1000&&b.cents%10000===0);
+      if(round.length)add(vk,name,1,`${round.length} round-number bill${round.length>1?"s":""} of $1,000 or more`,round);
+      const wk=list.filter(b=>b.date&&b.amt>=1000&&(b.date.getDay()===0||b.date.getDay()===6));
+      if(wk.length)add(vk,name,1,`${wk.length} bill${wk.length>1?"s":""} of $1,000 or more dated on a weekend`,wk);
+    }
+  });
+  if(vendors.length){
+    const share=(key,sev,label)=>{
+      groupBy(vendors.filter(v=>v[key]),v=>v[key]).forEach(g=>{
+        const uniq=[...new Map(g.map(v=>[v.vk,v])).values()];
+        if(uniq.length<2)return;
+        uniq.forEach(v=>add(v.vk,v.name,sev,`Shares ${label} with ${uniq.filter(o=>o!==v).map(o=>o.name).join(", ")}`));
+      });
+    };
+    share("bKey",3,"a bank account");share("aKey",2,"an address");share("pKey",2,"a phone number");
+    vendors.forEach(v=>{if(v.po)add(v.vk,v.name,1,"Address on file is only a PO box");else if(!v.addr)add(v.vk,v.name,1,"No address on file")});
+  }
+  return[...F.values()].map(f=>{
+    const all=byV.get(f.vk)||[];f.total=all.reduce((s,b)=>s+b.amt,0);
+    f.rows=[...f.rows].sort((a,b)=>(a.date||0)-(b.date||0));f.why.sort((a,b)=>b.s-a.s);f.key="f"+f.vk;return f;
+  }).sort((a,b)=>b.sev-a.sev||b.why.length-a.why.length||b.total-a.total);
+}
+
+/* ---------- 3. recurring charges ---------- */
+const CLASSES=[["Weekly",5,9,52],["Monthly",24,38,12],["Quarterly",80,100,4],["Yearly",340,390,1]];
+function findRecurring(B){
+  const pct=Math.max(0,+$("creep").value||0);
+  const dated=B.filter(b=>b.date&&b.vk&&b.amt>0);
+  if(!dated.length)return[];
+  const end=dated.reduce((m,b)=>Math.max(m,+b.date),-Infinity);
+  const out=[];
+  groupBy(dated,b=>b.vk).forEach(list=>{
+    list.sort((a,b)=>a.date-b.date);const n=list.length;if(n<2)return;
+    const gaps=[];for(let i=1;i<n;i++)gaps.push(Math.round((list[i].date-list[i-1].date)/DAY));
+    const med=[...gaps].sort((a,b)=>a-b)[Math.floor(gaps.length/2)];
+    const c=CLASSES.find(c=>med>=c[1]&&med<=c[2]);if(!c)return;
+    if((c[0]==="Weekly"||c[0]==="Monthly")&&n<3)return;
+    const off=gaps.filter(g=>g<c[1]||g>c[2]).length;if(off>(n>=5?1:0))return;
+    const amts=list.map(b=>b.amt),lo=amts.reduce((m,x)=>Math.min(m,x),Infinity),hi=amts.reduce((m,x)=>Math.max(m,x),-Infinity);
+    if(hi/lo>1.5||(n===2&&hi/lo>1.1))return;
+    const firstA=list[0].amt,last=list[n-1],change=(last.amt-firstA)/firstA*100;
+    const period=(c[1]+c[2])/2,stopped=(end-last.date)/DAY>period*1.5;
+    out.push({name:last.vendor,freq:c[0],n,first:firstA,latest:last.amt,change,up:change>=pct&&change>0,yearly:last.amt*c[3],last:last.date,stopped,key:"r"+last.vk});
+  });
+  return out.sort((a,b)=>a.stopped-b.stopped||b.yearly-a.yearly);
+}
+
+/* ---------- render ---------- */
+const SEV={3:["high","Likely duplicate","High"],2:["med","Check this","Medium"],1:["low","Worth a look","Low"]};
+function billTable(all){
+  const rows=all.length>MAXROWS?all.slice(0,MAXROWS):all;
+  return`<div class="tablewrap"><table><thead><tr><th>Row</th><th>Date</th><th>Vendor</th><th>Bill no.</th><th class="num">Amount</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="mono">${r.row}</td><td class="mono">${fmtD(r.date)}</td><td>${esc(r.vendor)}</td><td class="mono">${esc(r.inv)}</td><td class="num">${money(r.amt)}</td></tr>`).join("")}</tbody></table></div>${all.length>rows.length?`<p class="note">First ${MAXROWS} of ${all.length.toLocaleString("en-CA")} bills shown. Copy full report lists them all.</p>`:""}`;
+}
+function reviewBox(key){return`<label class="check"><input type="checkbox" data-key="${key}"${reviewed.has(key)?" checked":""}> Reviewed</label>`}
+function bindReview(root){root.querySelectorAll("input[data-key]").forEach(cb=>cb.addEventListener("change",()=>{cb.checked?reviewed.add(cb.dataset.key):reviewed.delete(cb.dataset.key);const c=cb.closest(".card,tr");if(c)c.classList.toggle("done",cb.checked)}))}
+/* long lists are drawn 50 findings at a time so large bill lists stay responsive */
+const STEP=50,SHOWN={dup:STEP,fr:STEP,rc:STEP*4};let Bc=null;
+const moreBar=(k,n)=>SHOWN[k]<n?`<div class="more row" data-more="${k}"><span class="note">Showing ${SHOWN[k].toLocaleString("en-CA")} of ${n.toLocaleString("en-CA")}</span><button class="btn ghost sm" type="button">Show ${Math.min(k==="rc"?STEP*4:STEP,n-SHOWN[k])} more</button></div>`:"";
+function bindMore(root,f){const m=root.querySelector("[data-more]");if(m)m.querySelector("button").addEventListener("click",()=>{const k=m.dataset.more;SHOWN[k]+=k==="rc"?STEP*4:STEP;f()})}
+const MAXROWS=100;
+/* hide/show the bill lines on each finding; the choice survives recalculation */
+const SHUT=new Set();
+const togBtn=k=>`<button class="btn ghost sm" type="button" data-tog="${esc(k)}" aria-expanded="${!SHUT.has(k)}">${SHUT.has(k)?"Show bills":"Hide bills"}</button>`;
+const togBody=(k,html)=>`<div data-body="${esc(k)}"${SHUT.has(k)?" hidden":""}>${html}</div>`;
+const allBar=n=>n>1?`<div class="row" style="justify-content:flex-end" data-all><button class="btn ghost sm" type="button" data-open="0">Hide all bills</button><button class="btn ghost sm" type="button" data-open="1">Show all bills</button></div>`:"";
+function bindTog(root){const set=(b,open)=>{const k=b.dataset.tog,body=root.querySelector(`[data-body="${CSS.escape(k)}"]`);if(body)body.hidden=!open;open?SHUT.delete(k):SHUT.add(k);b.textContent=open?"Hide bills":"Show bills";b.setAttribute("aria-expanded",open)};
+  root.querySelectorAll("[data-tog]").forEach(b=>b.addEventListener("click",()=>set(b,b.getAttribute("aria-expanded")!=="true")));
+  const a=root.querySelector("[data-all]");if(a)a.querySelectorAll("button").forEach(x=>x.addEventListener("click",()=>root.querySelectorAll("[data-tog]").forEach(b=>set(b,x.dataset.open==="1"))))}
+function renderDup(){
+  const el=$("dupOut");
+  if(!R.dup.length){el.innerHTML='<div class="empty">No likely duplicates found. Try looser vendor matching or a wider day window if you expected some.</div>';return}
+  el.innerHTML=allBar(R.dup.length)+R.dup.slice(0,SHOWN.dup).map(g=>{const[c,t]=SEV[g.sev];return`<article class="card ${c}${reviewed.has(g.key)?" done":""}">
+    <div class="chead"><div class="l"><span class="pill">${t}</span><span class="vname">${esc(g.name)}</span></div><div class="row">${g.risk?`<span class="money">${money(g.risk)} at risk</span>`:""}${togBtn(g.key)}</div></div>
+    <ul class="reasons">${g.why.map(w=>`<li>${esc(w.t)}</li>`).join("")}</ul>${togBody(g.key,billTable(g.rows))}${reviewBox(g.key)}</article>`}).join("")+moreBar("dup",R.dup.length);
+  bindReview(el);bindTog(el);bindMore(el,renderDup);
+}
+function renderFraud(){
+  const el=$("frOut");
+  if(!R.fr.length){el.innerHTML='<div class="empty">No red flags found with these settings.</div>';return}
+  el.innerHTML=allBar(R.fr.length)+R.fr.slice(0,SHOWN.fr).map(f=>{const[c,,lab]=SEV[f.sev];return`<article class="card ${c}${reviewed.has(f.key)?" done":""}">
+    <div class="chead"><div class="l"><span class="pill">${lab} risk</span><span class="vname">${esc(f.name)}</span></div><div class="row">${f.total?`<span class="money">${money(f.total)} billed</span>`:""}${f.rows.length?togBtn(f.key):""}</div></div>
+    <ul class="reasons">${f.why.map(w=>`<li class="sev${w.s}">${esc(w.t)}</li>`).join("")}</ul>${f.rows.length?togBody(f.key,billTable(f.rows)):""}${reviewBox(f.key)}</article>`}).join("")+moreBar("fr",R.fr.length);
+  bindReview(el);bindTog(el);bindMore(el,renderFraud);
+}
+function renderRecurring(){
+  const el=$("rcOut");
+  if(!R.rc.length){el.innerHTML='<div class="empty">No recurring charges found. They need at least three bills a month apart, or two a quarter or a year apart, from the same vendor.</div>';return}
+  el.innerHTML=`<div class="panel" style="padding:8px 14px"><div class="tablewrap"><table style="min-width:620px"><thead><tr><th>Vendor</th><th>How often</th><th class="num">Latest</th><th class="num">Per year</th><th class="num">Change</th><th>Last charged</th><th>Checked</th></tr></thead><tbody>
+  ${R.rc.slice(0,SHOWN.rc).map(r=>`<tr class="${r.stopped?"stopped":""}${reviewed.has(r.key)?" done":""}"><td>${esc(r.name)}${r.stopped?' <span class="pill low">May have stopped</span>':""}</td><td>${r.freq} · ${r.n} bills</td><td class="num">${money(r.latest)}</td><td class="num">${r.stopped?"–":money0(r.yearly)}</td><td class="num">${Math.abs(r.change)<0.05?"–":`<span class="${r.up?"pill med":""}">${r.change>0?"+":""}${r.change.toFixed(1)}%</span>`}</td><td class="mono">${fmtD(r.last)}</td><td><input type="checkbox" aria-label="Checked ${esc(r.name)}" data-key="${r.key}"${reviewed.has(r.key)?" checked":""}></td></tr>`).join("")}
+  </tbody></table></div></div>${moreBar("rc",R.rc.length)}`;
+  bindReview(el);bindMore(el,renderRecurring);
+}
+function renderTiles(){
+  const risk=R.dup.reduce((s,g)=>s+g.risk,0);
+  $("tDup").textContent=money0(risk);$("tDupS").textContent=`possibly paid twice · ${R.dup.length} group${R.dup.length===1?"":"s"} to check`;
+  $("tab-duplicates").classList.toggle("alert",risk>0);
+  const hi=R.fr.filter(f=>f.sev===3).length;
+  $("tFr").textContent=R.fr.length;$("tFrS").textContent=`vendor${R.fr.length===1?"":"s"} to look at · ${hi} high risk`;
+  $("tab-red-flags").classList.toggle("alert",hi>0);
+  const act=R.rc.filter(r=>!r.stopped),yr=act.reduce((s,r)=>s+r.yearly,0),ups=R.rc.filter(r=>r.up).length;
+  $("tRc").textContent=money0(yr);$("tRcS").textContent=`per year across ${act.length} charge${act.length===1?"":"s"} · ${ups} went up`;
+}
+function run(only){
+  if(!table)return;
+  if(mapping.amount===undefined)showErr("err","Pick which column holds the bill amount.");else $("err").hidden=true;
+  const B=Bc||(Bc=bills());
+  /* a setting change re-runs only the check it belongs to */
+  if(!only||only==="dup"){R.dup=findDuplicates(B);renderDup()}
+  if(!only||only==="fr"){R.fr=findRedFlags(B);renderFraud()}
+  if(!only||only==="rc"){R.rc=findRecurring(B);renderRecurring()}
+  renderTiles();
+}
+
+/* ---------- tabs ---------- */
+const TABS=["duplicates","red-flags","recurring"];
+function show(t){TABS.forEach(x=>{$("p-"+x).hidden=x!==t;$("tab-"+x).setAttribute("aria-selected",x===t)})}
+document.querySelectorAll(".tile").forEach(b=>b.addEventListener("click",()=>{show(b.dataset.tab);try{history.replaceState(null,"","#"+b.dataset.tab)}catch(e){}}));
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(TABS.includes(h))show(h)});
+
+/* ---------- copy report ---------- */
+$("copy").addEventListener("click",e=>{
+  const L=[`AP HEALTH CHECK`,""];
+  L.push(`DUPLICATE BILLS: ${money(R.dup.reduce((s,g)=>s+g.risk,0))} possibly paid twice`);
+  R.dup.forEach(g=>{L.push(`- ${SEV[g.sev][1]}: ${g.name}${g.risk?` (${money(g.risk)} at risk)`:""}`);g.why.forEach(w=>L.push(`    ${w.t}`));g.rows.forEach(r=>L.push(`    Row ${r.row} | ${fmtD(r.date)} | ${r.vendor} | ${r.inv} | ${money(r.amt)}`))});
+  L.push("",`FRAUD RED FLAGS: ${R.fr.length} vendors`);
+  R.fr.forEach(f=>{L.push(`- ${SEV[f.sev][2]} risk: ${f.name}`);f.why.forEach(w=>L.push(`    ${w.t}`))});
+  L.push("","RECURRING CHARGES");
+  R.rc.forEach(r=>L.push(`- ${r.name}: ${r.freq}, latest ${money(r.latest)}${r.stopped?", may have stopped":`, ${money0(r.yearly)}/yr`}${Math.abs(r.change)>=0.05?`, ${r.change>0?"+":""}${r.change.toFixed(1)}% since first bill`:""}`));
+  L.push("",`Questions? ${CONFIG.name} · ${CONFIG.email}`);
+  copyText(L.join("\n"),e.currentTarget,"Copy full report");
+});
+
+/* ---------- inputs ---------- */
+$("file").addEventListener("change",e=>readFile(e.target.files[0],(rows,n)=>loadRows(rows,n,false)));
+$("vfile").addEventListener("change",e=>readFile(e.target.files[0],(rows,n)=>loadVendors(rows,n,false),VROLES));
+const drop=$("drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>readFile(e.dataTransfer.files[0],(rows,n)=>loadRows(rows,n,false)));
+const runT={};const runSoon=k=>{clearTimeout(runT[k]);runT[k]=setTimeout(()=>run(k),250)};
+[["win","dup"],["limit","fr"],["bigFirst","fr"],["creep","rc"]].forEach(([id,k])=>$(id).addEventListener("input",()=>runSoon(k)));
+$("sim").addEventListener("change",()=>run("dup"));
+
+/* ---------- sample data (fictional businesses) ---------- */
+function sampleBills(){
+  const S=[["Date","Vendor","Bill No.","Amount"]],a=(d,v,i,x)=>S.push([d,v,i,x]);
+  const MON=["","JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT"];
+  for(let m=5;m<=10;m++){const mm=pad(m);
+    a(`2026-${mm}-01`,"Kingsway Properties",`RENT-${MON[m]}`,4500);
+    a(`2026-${mm}-03`,"Officesuite Pro",`OS-${40122337+m*104729}`,m<=7?34.50:37.95);
+    a(`2026-${mm}-07`,"FleetTrack GPS",`FT-${200341+m*1213}`,149);
+    a(`2026-${mm}-12`,"Northstar Mobility",`NM-${88213904+m*35111}`,285);
+    a(`2026-${mm}-18`,"Cloudline Accounting Software",`CL-${5520193+m*77017}`,m<=6?90:115);
+    if(m<=8)a(`2026-${mm}-21`,"Pixelworks Design Cloud",`PX-${310077+m*9907}`,29.99);
+    a(`2026-${mm}-25`,"Lakeshore Internet",`LI-${66120+m*4391}`,120);
+  }
+  [["2026-05-14","Harbour Insurance","HI-2026-05",1125],["2026-08-14","Harbour Insurance","HI-2026-08",1125],
+   ["2026-06-10","ABC Supply Ltd","INV-0031",865.20],["2026-07-22","ABC Supply Ltd","INV-0038",1912.75],
+   ["2026-09-02","ABC Supply Ltd","INV-0045",1240],["2026-09-09","A.B.C. Supply Limited","45",1240],
+   ["2026-06-15","Northline Electric","NE-7702",2410],["2026-09-03","Northline Electric","NE-7781",3860.50],["2026-09-03","Northline Electric","NE-7781",3860.50],
+   ["2026-07-08","Metro Office Products","87904",312.40],["2026-09-06","Metro Office Products","88231",489.99],["2026-09-20","Metro Office Products","88231",498.99],
+   ["2026-09-08","Greenleaf Cleaning","GL-330",640],["2026-09-15","Fresh Start Janitorial","GL-330",640],
+   ["2026-05-08","Pacific Courier","PC-1031",188.20],["2026-06-05","Pacific Courier","PC-1064",240.10],["2026-07-10","Pacific Courier","PC-1088",175.55],
+   ["2026-09-05","Pacific Courier","PC-1102",212.40],["2026-09-12","Pacific Courier","PC-1119",212.40],["2026-10-09","Pacific Courier","PC-1140",260.80],
+   ["2026-05-19","Summit Fuel Inc","SF-8810",588.40],["2026-06-27","Summit Fuel Inc","SF-8874",640.15],["2026-09-18","Summit Fuel Inc","SF-9001",702.18],["2026-09-22","Summit Fuel Inc.","SF-9014",655.30],
+   ["2026-09-10","Dataline Telecom","DT-55120",318.75],
+   ["2026-08-15","Apex Consulting Group","1001",9800],["2026-09-15","Apex Consulting Group","1002",5000],["2026-10-15","Apex Consulting Group","1003",4000],
+   ["2026-10-20","Brightway Renovations","BR-2207",6000],["2026-10-20","Brightway Renovations","BR-2208",5500]
+  ].forEach(r=>a(...r));
+  return[S[0],...S.slice(1).sort((x,y)=>x[0]<y[0]?-1:x[0]>y[0]?1:0)];
+}
+function sampleVendors(){
+  return[["Vendor","Address","Phone","Bank account"],
+   ["ABC Supply Ltd","14 Industrial Rd, Hamilton ON L8H 3R2","905-555-0141","00412-003-1182231"],
+   ["Northline Electric","900 Lakeshore Blvd, Toronto ON M8V 1A1","416-555-0190","00219-004-7731820"],
+   ["Apex Consulting Group","Unit 4, 220 Main St, Brampton ON L6V 1M8","647-555-0133","00105-002-5512090"],
+   ["Brightway Renovations","220 Main Street, Unit 4, Brampton ON L6V 1M8","(647) 555-0133","00105-002-5512090"],
+   ["Pacific Courier","PO Box 4410, Vancouver BC V6B 4A1","604-555-0112","00301-001-2290017"],
+   ["Metro Office Products","55 Queen St E, Toronto ON M5C 1R6","416-555-0177","00219-006-4410983"],
+   ["Greenleaf Cleaning","","905-555-0164","00412-008-9910032"],
+   ["Fresh Start Janitorial","31 Dundas St W, Mississauga ON L5B 1H5","905-555-0102","00412-011-3320871"],
+   ["Summit Fuel Inc","1200 Highway 7, Concord ON L4K 1W5","905-555-0155","00219-002-8812004"],
+   ["Kingsway Properties","2 Kingsway Cres, Etobicoke ON M8X 2R4","416-555-0120","00105-009-1100457"]];
+}
+$("sample").addEventListener("click",()=>{loadVendors(sampleVendors(),"Sample vendor list",true);loadRows(sampleBills(),"Sample bills",true)});
+
+loadVendors(sampleVendors(),"Sample vendor list",true);
+loadRows(sampleBills(),"Sample bills",true);
+const h0=location.hash.slice(1);show(TABS.includes(h0)?h0:"duplicates");
+</script>
+
+</body></html>
