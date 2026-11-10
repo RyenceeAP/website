@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ryan Carrillo | Accounts payable for Ottawa small businesses</title>
+<meta name="description" content="Ryan Carrillo handles bills, supplier statements and payment runs for Ottawa contractors, salons and small shops. Flat monthly plans from $200.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F3F6F2;
+    --sheet: #FFFFFF;
+    --ink: #18242B;
+    --muted: #55626B;
+    --rule: #D3DBD5;
+    --ledger: #2F5F93;
+    --ledger-soft: #E6EEF6;
+    --marker: #F6D94A;
+    --wrap: 1080px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Schibsted Grotesk", system-ui, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+  }
+  a { color: var(--ledger); }
+  a:focus-visible, .btn:focus-visible {
+    outline: 3px solid var(--ledger);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 720px) { .wrap { padding: 0 32px; } }
+
+  /* Header */
+  .site-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 20px; padding-bottom: 20px; gap: 16px;
+  }
+  .name { font-weight: 700; font-size: 1.125rem; text-decoration: none; color: var(--ink); }
+  .name span { font-weight: 400; color: var(--muted); }
+  @media (max-width: 520px) { .name span { display: none; } }
+
+  .btn {
+    display: inline-block; text-decoration: none; font-weight: 600;
+    padding: 12px 20px; border-radius: 6px; font-size: 1rem; line-height: 1.2;
+  }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { background: #2B3B45; }
+  .btn-quiet { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .btn-quiet:hover { background: var(--sheet); }
+
+  /* Hero */
+  .hero {
+    display: grid; gap: 40px; align-items: center;
+    padding-top: 32px; padding-bottom: 72px;
+  }
+  @media (min-width: 900px) {
+    .hero { grid-template-columns: 1.05fr 1fr; gap: 56px; padding-top: 56px; padding-bottom: 104px; }
+  }
+  h1 {
+    font-size: clamp(2.25rem, 5.4vw, 3.6rem);
+    line-height: 1.05; letter-spacing: -0.025em; font-weight: 800;
+    margin: 0 0 20px; max-width: 14ch;
+  }
+  .lede { font-size: 1.1875rem; color: var(--muted); max-width: 38ch; margin: 0 0 28px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  /* The statement: the one memorable element */
+  .statement {
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 22px 22px 18px;
+    box-shadow: 0 1px 0 var(--rule), 0 18px 40px -24px rgba(24,36,43,.35);
+    transform: rotate(-0.6deg);
+  }
+  .statement-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 4px;
+  }
+  .statement-head strong { font-size: 1rem; }
+  .statement-head span { font-size: .875rem; color: var(--muted); }
+  .rows { width: 100%; border-collapse: collapse; font-size: .9375rem; }
+  .rows th {
+    text-align: left; font-weight: 500; color: var(--muted); font-size: .8125rem;
+    padding: 8px 6px 6px; border-bottom: 1px solid var(--rule);
+  }
+  .rows td { padding: 9px 6px; border-bottom: 1px solid var(--ledger-soft); }
+  .rows .amt { text-align: right; white-space: nowrap; }
+  .rows tr.flag td { position: relative; }
+  .rows tr.flag td::before {
+    content: ""; position: absolute; inset: 4px 0; z-index: 0;
+    background: var(--marker); opacity: .75;
+    transform-origin: left center;
+    animation: swipe .55s ease-out both;
+  }
+  .rows tr.flag td:nth-child(2)::before { animation-delay: .12s; }
+  .rows tr.flag td:nth-child(3)::before { animation-delay: .24s; }
+  .rows tr.flag.second td::before { animation-delay: .7s; }
+  .rows tr.flag.second td:nth-child(2)::before { animation-delay: .82s; }
+  .rows tr.flag.second td:nth-child(3)::before { animation-delay: .94s; }
+  .rows tr.flag td > span { position: relative; z-index: 1; }
+  @keyframes swipe { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .note {
+    margin: 14px 0 0; padding-left: 12px; border-left: 3px solid var(--marker);
+    font-size: .9375rem; color: var(--ink);
+  }
+  .note + .note { margin-top: 8px; }
+  @media (max-width: 420px) {
+    .statement { padding: 16px 14px 14px; transform: none; }
+    .rows { font-size: .875rem; }
+    .rows .ref { display: none; }
+  }
+
+  /* Sections */
+  section { padding: 64px 0; border-top: 1px solid var(--rule); }
+  h2 {
+    font-size: clamp(1.625rem, 3.2vw, 2.125rem); line-height: 1.15;
+    letter-spacing: -0.015em; margin: 0 0 12px; font-weight: 700; max-width: 24ch;
+  }
+  .intro { color: var(--muted); max-width: 56ch; margin: 0 0 36px; }
+
+  .duties { display: grid; gap: 28px 48px; margin: 0; padding: 0; list-style: none; }
+  @media (min-width: 720px) { .duties { grid-template-columns: 1fr 1fr; } }
+  .duties h3, .who h3 { font-size: 1.125rem; margin: 0 0 4px; font-weight: 600; }
+  .duties p, .who p { margin: 0; color: var(--muted); max-width: 46ch; }
+
+  .who { display: grid; gap: 28px; }
+  @media (min-width: 820px) { .who { grid-template-columns: repeat(3, 1fr); gap: 40px; } }
+  .who > div { border-top: 3px solid var(--ink); padding-top: 14px; }
+  .who p.addon {
+    margin-top: 12px; padding: 10px 12px; background: var(--sheet);
+    border-left: 3px solid var(--marker); color: var(--ink); font-size: .9375rem;
+  }
+
+  .pricing { display: grid; gap: 32px; align-items: start; }
+  @media (min-width: 820px) { .pricing { grid-template-columns: 1fr 1fr; gap: 56px; } }
+  .price-line { font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+  .price-line small { font-size: 1.0625rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .factors { margin: 0; padding: 0; list-style: none; }
+  .factors li { padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .factors li:first-child { border-top: 1px solid var(--rule); }
+
+  .check {
+    background: var(--ledger); color: #fff; border-radius: 6px;
+    padding: 36px 24px; display: grid; gap: 20px; align-items: center;
+  }
+  @media (min-width: 820px) { .check { grid-template-columns: 1fr auto; padding: 44px 48px; } }
+  .check h2 { color: #fff; margin-bottom: 8px; }
+  .check p { margin: 0; color: #DCE7F3; max-width: 52ch; }
+  .check .btn { background: #fff; color: var(--ledger); }
+  .check .btn:hover { background: var(--marker); color: var(--ink); }
+  .check .btn:focus-visible { outline-color: #fff; }
+  .check-section { border-top: 0; padding-top: 8px; }
+
+  .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 24px; }
+  @media (min-width: 820px) { .steps { grid-template-columns: repeat(3, 1fr); gap: 40px; } }
+  .steps li { counter-increment: step; }
+  .steps li::before {
+    content: counter(step); display: inline-grid; place-items: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1.5px solid var(--ink); font-weight: 700; margin-bottom: 10px;
+  }
+  .steps h3 { font-size: 1.125rem; margin: 0 0 4px; font-weight: 600; }
+  .steps p { margin: 0; color: var(--muted); }
+
+  .about { display: grid; gap: 24px; }
+  @media (min-width: 820px) { .about { grid-template-columns: 1fr 1.4fr; gap: 56px; } }
+  .about p { margin: 0 0 16px; max-width: 60ch; }
+
+  .contact { padding-bottom: 80px; }
+  .contact-lines { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin-top: 8px; }
+  .contact-lines a.mail { font-weight: 600; font-size: 1.125rem; }
+
+  footer { border-top: 1px solid var(--rule); padding: 24px 0 40px; color: var(--muted); font-size: .875rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rows tr.flag td::before { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap site-head">
+  <a class="name" href="#top">Ryan Carrillo <span>&nbsp;Accounts payable</span></a>
+  <a class="btn btn-primary" href="#contact">Book a call</a>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <h1>Your bills, paid right and on time.</h1>
+      <p class="lede">I handle accounts payable for Ottawa contractors, salons and small shops: entering bills, running payments and reconciling supplier statements, so you can stop doing it at night.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="#contact">Book a free 15-minute call</a>
+        <a class="btn btn-quiet" href="health-check.html">Try the free AP Health Check</a>
+      </div>
+    </div>
+
+    <figure class="statement" aria-label="Example supplier statement with two problems flagged" style="margin:0">
+      <div class="statement-head">
+        <strong>Supplier statement</strong>
+        <span>Example</span>
+      </div>
+      <table class="rows">
+        <thead>
+          <tr><th>Date</th><th class="ref">Reference</th><th class="amt">Amount</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Oct 02</td><td class="ref">Invoice 2038</td><td class="amt">$642.10</td></tr>
+          <tr><td>Oct 09</td><td class="ref">Invoice 2041</td><td class="amt">$1,284.00</td></tr>
+          <tr><td>Oct 14</td><td class="ref">Payment</td><td class="amt">−$1,284.00</td></tr>
+          <tr><td>Oct 16</td><td class="ref">Payment</td><td class="amt">−$642.10</td></tr>
+          <tr class="flag"><td><span>Oct 21</span></td><td class="ref"><span>Payment</span></td><td class="amt"><span>−$1,284.00</span></td></tr>
+          <tr class="flag second"><td><span>Oct 28</span></td><td class="ref"><span>Credit note 117</span></td><td class="amt"><span>−$310.75</span></td></tr>
+        </tbody>
+      </table>
+      <p class="note">Invoice 2041 paid on Oct 14, then paid again on Oct 21.</p>
+      <p class="note">Credit of $310.75 never applied to a bill.</p>
+    </figure>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <h2>What I take off your plate</h2>
+      <p class="intro">The day-to-day work of paying suppliers, done every month in the accounting system you already use.</p>
+      <ul class="duties">
+        <li>
+          <h3>Bills entered and organized</h3>
+          <p>Every supplier invoice recorded, coded and matched to the right job or expense.</p>
+        </li>
+        <li>
+          <h3>Payments on schedule</h3>
+          <p>Regular payment runs, so suppliers get paid on time and you avoid late fees.</p>
+        </li>
+        <li>
+          <h3>Supplier statements reconciled</h3>
+          <p>Each month I check your suppliers' statements against your records and chase down anything that doesn't match.</p>
+        </li>
+        <li>
+          <h3>Duplicates and red flags caught</h3>
+          <p>Double payments, unapplied credits, surprise recurring charges and suspicious changes to vendor banking details.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Built for owner-run businesses</h2>
+      <p class="intro">If you don't have someone on staff handling bills, or that someone is you, this is for you.</p>
+      <div class="who">
+        <div>
+          <h3>Contractors and trades</h3>
+          <p>Job-coded supplier bills, subcontractor payments, WSIB clearance tracking and records ready for T5018 slips.</p>
+          <p class="addon"><strong>Optional add-on:</strong> getting your invoices out on time, tracking customer payments and holdbacks, and sending polite reminders, so you get paid faster.</p>
+        </div>
+        <div>
+          <h3>Salons and studios</h3>
+          <p>Product supplier invoices, equipment and rent payments, and recurring software charges kept in check.</p>
+        </div>
+        <div>
+          <h3>Small shops</h3>
+          <p>Inventory suppliers with running statements, credits and returns applied where they belong.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap pricing">
+      <div>
+        <h2>Flat monthly pricing</h2>
+        <p class="price-line">From $200 <small>per month, plus HST</small></p>
+        <p class="intro" style="margin-bottom:0">One predictable fee instead of hourly billing. You'll get an exact quote after a free call.</p>
+      </div>
+      <div>
+        <p style="margin:0 0 12px;font-weight:600">Your plan depends on</p>
+        <ul class="factors">
+          <li>How many bills you get each month</li>
+          <li>How often you want payment runs</li>
+          <li>How many supplier statements need reconciling</li>
+          <li>Contractor extras like subcontractor tracking</li>
+          <li>Whether you add invoicing and payment reminders</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="check-section">
+    <div class="wrap">
+      <div class="check">
+        <div>
+          <h2>Not sure where your payables stand?</h2>
+          <p>The free AP Health Check looks for duplicate bills, recurring charges you may have forgotten and common vendor fraud red flags.</p>
+        </div>
+        <a class="btn" href="health-check.html">Run the free Health Check</a>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>How getting started works</h2>
+      <p class="intro">No long setup and no new software to learn.</p>
+      <ol class="steps">
+        <li>
+          <h3>Free 15-minute call</h3>
+          <p>We talk through how you handle bills today and where things slip.</p>
+        </li>
+        <li>
+          <h3>A look at recent bills</h3>
+          <p>I review a month or two of bills and statements, then send you a flat monthly quote.</p>
+        </li>
+        <li>
+          <h3>Monthly routine</h3>
+          <p>I take over bills, payments and reconciliations, and you get a short summary each month.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap about">
+      <h2>About me</h2>
+      <div>
+        <p>I'm Ryan Carrillo, an accounts payable specialist based in Ottawa. I've spent [X] years running AP for a group of companies: processing supplier invoices, managing payment runs and reconciling vendor statements every month.</p>
+        <p>I started this practice because small businesses deal with the same supplier problems as larger companies, without anyone whose job it is to catch them. I work alongside your bookkeeper or accountant, never in place of them.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact" class="contact">
+    <div class="wrap">
+      <h2>Book a free call</h2>
+      <p class="intro">Fifteen minutes, no obligation. Tell me a bit about your business and we'll see if it's a fit.</p>
+      <div class="contact-lines">
+        <!-- Replace with your booking link (for example, Calendly) when you have one -->
+        <a class="btn btn-primary" href="mailto:ryan@ryancarrillo.ca?subject=Booking%20a%20call">Email me to book</a>
+        <a class="mail" href="mailto:ryan@ryancarrillo.ca">ryan@ryancarrillo.ca</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Ryan Carrillo, accounts payable services in Ottawa, Ontario</div>
+</footer>
+
+</body>
+</html>
