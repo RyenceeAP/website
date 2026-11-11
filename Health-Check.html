@@ -49,8 +49,7 @@ select,input[type=number]{font:400 .92rem var(--sans);color:var(--fg);background
 .tile .t{font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .tile b{font:500 1.35rem var(--mono);font-variant-numeric:tabular-nums}
 [data-body]{min-width:0}
-.ver{font-size:.82rem;color:var(--muted);margin:2px 0 0}.ver a{color:inherit}
-#history td:first-child{white-space:nowrap}
+.ver{font-size:.82rem;color:var(--muted);margin:2px 0 0}
 .tile .s{font-size:.8rem;color:var(--muted)}
 .tile.alert b{color:var(--high)}
 .report{display:grid;gap:12px}
@@ -102,7 +101,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <header>
     <h1>AP Health Check</h1>
-    <p class="ver"><a href="#history">Version 0.6</a> · November 11, 2026</p>
+    <p class="ver">Version 0.7 · November 11, 2026</p>
     <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
   </header>
 
@@ -193,14 +192,6 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
   </section>
 
   <footer>The AP Health Check flags patterns worth reviewing. It isn't an audit and doesn't confirm fraud or errors.</footer>
-  <details id="history" class="panel"><summary style="cursor:pointer;font-weight:600">Version history</summary><div class="tablewrap"><table style="min-width:0"><thead><tr><th>Version</th><th>Changes</th></tr></thead><tbody>
-    <tr><td class="mono">0.6</td><td>Contact email updated and phone number removed.</td></tr>
-    <tr><td class="mono">0.5</td><td>Much faster on large bill lists (100,000+ bills). The duplicate check only compares bills that share an amount or an invoice number. Findings are shown 50 at a time with a Show more button, and each finding lists its first 100 bills (Copy full report still includes everything). A "Reading file" message shows while a large file opens.</td></tr>
-    <tr><td class="mono">0.4</td><td>Spreadsheets with title rows above the table, merged header cells, several tabs or very wide formatting are read correctly, and totals rows are skipped. The duplicate check also catches the same invoice number written with or without a "-00" ending or a letter prefix. The bills on each finding can be hidden or shown, with hide all and show all. Settings recalculate once you stop typing. Version number and history added.</td></tr>
-    <tr><td class="mono">0.3</td><td>Booking link updated to a 30-minute call.</td></tr>
-    <tr><td class="mono">0.2</td><td>Contact details and booking link added.</td></tr>
-    <tr><td class="mono">0.1</td><td>First version: duplicate bills, fraud red flags and recurring charges from one bill export, with a book-a-call section.</td></tr>
-  </tbody></table></div></details>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
