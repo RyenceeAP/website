@@ -5,6 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ryan Carrillo | Accounts payable for Ottawa small businesses</title>
 <meta name="description" content="Ryan Carrillo handles bills, supplier statements and payment runs for Ottawa contractors, salons and small shops. Flat monthly plans from $200.">
+<link rel="canonical" href="https://ryancarrillo.ca/">
+
+<!-- Favicon -->
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#18242B">
+
+<!-- Link preview (Facebook, LinkedIn, iMessage, Slack, X) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ryan Carrillo">
+<meta property="og:url" content="https://ryancarrillo.ca/">
+<meta property="og:title" content="Ryan Carrillo | Accounts payable for Ottawa small businesses">
+<meta property="og:description" content="Bills, supplier statements and payment runs for Ottawa contractors, salons and small shops. Flat monthly plans. Free 15-minute call.">
+<meta property="og:image" content="https://ryancarrillo.ca/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Ryan Carrillo, accounts payable for Ottawa small businesses">
+<meta property="og:locale" content="en_CA">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -180,6 +201,11 @@
   .contact { padding-bottom: 80px; }
   .contact-lines { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin-top: 8px; }
   .contact-lines a.mail { font-weight: 600; font-size: 1.125rem; }
+  .cal-embed {
+    margin-top: 24px; background: var(--sheet); border: 1px solid var(--rule);
+    border-radius: 10px; min-height: 640px; overflow: auto;
+  }
+  .cal-alt { margin-top: 16px; color: var(--muted); font-size: .9375rem; }
 
   footer { border-top: 1px solid var(--rule); padding: 24px 0 40px; color: var(--muted); font-size: .875rem; }
 
@@ -344,12 +370,27 @@
       <h2>Book a free call</h2>
       <p class="intro">Fifteen minutes, no obligation. Tell me a bit about your business and we'll see if it's a fit.</p>
       <div class="contact-lines">
-        <!-- Replace with your booking link (for example, Calendly) when you have one -->
-        <a class="btn btn-primary" href="mailto:ryan@ryancarrillo.ca?subject=Booking%20a%20call">Email me to book</a>
+        <a class="btn btn-primary" href="https://cal.com/ryan-carrillo-3ljd4a/15min" target="_blank" rel="noopener">Book a free 15-minute call</a>
         <a class="mail" href="mailto:ryan@ryancarrillo.ca">ryan@ryancarrillo.ca</a>
       </div>
+
+      <!-- Cal.com inline embed: 15-minute call -->
+      <div class="cal-embed" id="my-cal-inline-15min"></div>
+      <p class="cal-alt">Need more time? <a href="https://cal.com/ryan-carrillo-3ljd4a/30min" target="_blank" rel="noopener">Book a 30-minute call</a> instead.</p>
     </div>
   </section>
+  <script type="text/javascript">
+    (function (C, A, L) { let p = function (a, ar) { a.q.push(ar); }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if(typeof namespace === "string"){cal.ns[namespace] = cal.ns[namespace] || api;p(cal.ns[namespace], ar);p(cal, ["initNamespace", namespace]);} else p(cal, ar); return;} p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
+    Cal("init", "15min", {origin:"https://app.cal.com"});
+    Cal.config = Cal.config || {};
+    Cal.config.forwardQueryParams = true;
+    Cal.ns["15min"]("inline", {
+      elementOrSelector: "#my-cal-inline-15min",
+      config: {"layout":"month_view","useSlotsViewOnSmallScreen":"true"},
+      calLink: "ryan-carrillo-3ljd4a/15min",
+    });
+    Cal.ns["15min"]("ui", {"hideEventTypeDetails":false,"layout":"month_view"});
+  </script>
 </main>
 
 <footer>
