@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="icon" href="/favicon.ico" sizes="any"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest"><meta name="theme-color" content="#18242B"><meta property="og:type" content="website"><meta property="og:site_name" content="Ryan Carrillo"><meta property="og:url" content="https://ryancarrillo.ca/Health-Check.html"><meta property="og:title" content="Free AP Health Check | Ryan Carrillo"><meta property="og:description" content="Upload one bill export and spot duplicate bills, fraud red flags and recurring charges. Free, and your file never leaves your browser."><meta property="og:image" content="https://ryancarrillo.ca/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>AP Health Check</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -102,7 +102,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <header>
     <h1>AP Health Check</h1>
-    <p class="ver"><a href="#history">Version 0.5</a> · November 9, 2026</p>
+    <p class="ver"><a href="#history">Version 0.6</a> · November 11, 2026</p>
     <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
   </header>
 
@@ -194,6 +194,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <footer>The AP Health Check flags patterns worth reviewing. It isn't an audit and doesn't confirm fraud or errors.</footer>
   <details id="history" class="panel"><summary style="cursor:pointer;font-weight:600">Version history</summary><div class="tablewrap"><table style="min-width:0"><thead><tr><th>Version</th><th>Changes</th></tr></thead><tbody>
+    <tr><td class="mono">0.6</td><td>Contact email updated and phone number removed.</td></tr>
     <tr><td class="mono">0.5</td><td>Much faster on large bill lists (100,000+ bills). The duplicate check only compares bills that share an amount or an invoice number. Findings are shown 50 at a time with a Show more button, and each finding lists its first 100 bills (Copy full report still includes everything). A "Reading file" message shows while a large file opens.</td></tr>
     <tr><td class="mono">0.4</td><td>Spreadsheets with title rows above the table, merged header cells, several tabs or very wide formatting are read correctly, and totals rows are skipped. The duplicate check also catches the same invoice number written with or without a "-00" ending or a letter prefix. The bills on each finding can be hidden or shown, with hide all and show all. Settings recalculate once you stop typing. Version number and history added.</td></tr>
     <tr><td class="mono">0.3</td><td>Booking link updated to a 30-minute call.</td></tr>
@@ -209,8 +210,8 @@ const CONFIG={
   name:"Ryan Carrillo",
   role:"Accounts payable specialist",
   location:"Canada",
-  email:"ryancarrillo613@gmail.com",
-  phone:"613-618-8144",
+  email:"ryan@ryancarrillo.ca",
+  phone:"",
   bookingUrl:"https://cal.com/ryan-carrillo-3ljd4a/30min",
   bio:"I work in accounts payable every day: entering bills, chasing approvals, reconciling vendor statements and catching the mistakes that cost businesses money. I help small businesses keep their payables clean and their payment runs safe."
 };
