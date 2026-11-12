@@ -42,6 +42,10 @@ select,input[type=number]{font:400 .92rem var(--sans);color:var(--fg);background
 .source{font-size:.85rem;color:var(--muted);margin:0}
 .tag{display:inline-block;font-size:.72rem;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--tint);color:var(--accent);margin-left:6px}
 .err{color:var(--high);font-size:.9rem;margin:0}
+.warn{margin:0;font-size:.9rem;border-left:4px solid var(--high);background:var(--tint);border-radius:4px;padding:8px 12px}
+.dates{font-size:.85rem;margin:0}.dates .btn{margin-left:4px}
+details.skips{font-size:.84rem;background:var(--bg);border-radius:6px;padding:8px 12px}details.skips summary{color:var(--med);cursor:pointer}
+details.skips ul{margin:6px 0 0;padding-left:18px;display:grid;gap:2px;overflow-wrap:anywhere}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media (max-width:600px){.tiles{grid-template-columns:1fr}}
 .tile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px;border-top:3px solid transparent}
@@ -101,7 +105,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <header>
     <h1>AP Health Check</h1>
-    <p class="ver">Version 0.7 · November 11, 2026</p>
+    <p class="ver">Version 0.8 · November 11, 2026</p>
     <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
   </header>
 
@@ -118,6 +122,9 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
     <p class="private"><b>Your file stays on this device.</b> Everything runs in your browser. Nothing is uploaded or sent to anyone.</p>
     <p class="source" id="source"></p>
     <p class="err" id="err" hidden></p>
+    <p class="warn" id="warn" role="status" hidden></p>
+    <p class="dates" id="dates" hidden></p>
+    <div id="skips"></div>
     <div class="grid" id="map"></div>
   </section>
 
@@ -208,6 +215,208 @@ const CONFIG={
 };
 /* ================================== */
 
+/* ===== AP shared parsing (src/parse.js) =====
+   One copy of the rules for reading amounts, dates, headers, vendor names and references, used by every AP tool.
+   Built tools get it through src/common.js; a standalone tool embeds this whole block unchanged, from this
+   marker to the end marker, and tests/drift.js checks the copy is identical. No dependencies.
+   Everything is on one object, APParse:
+     amount(v)            number, or NaN when v is not an amount
+     toCents(v) fromCents(c) sumCents(list,f)   integer-cent money maths
+     isBlank(v)           empty cell
+     date(v,order)        Date (local midnight) or null; order "mdy" (default) or "dmy" for numeric dates like 05/11/2026
+     dateOrder(values)    "dmy" | "mdy" | "ambiguous" | "mixed" | "none" for a column of values
+     dateOrderStats(values)  {order, dmy, mdy, n, example (a value that decided it), first (first numeric date)}
+     useOrder(det)        the order to read with: {order:"dmy"|"mdy", flag:true when the user should confirm}
+     fold(s) normHeader(s) canonHeader(s)   header text forms (accents folded, French words put in English)
+     role(r) roleScore(header,role,roles) mapHeaders(headers,roles,opts) headerScore(row,roles)
+     vendorKey(s) refKey(s)=normDocNo(s)   matching keys, identical to src/batch.js
+     csvCell(v) tsvCell(v)    export-safe cells
+     skips()              collector for rows that could not be read: add(row,reason,cells), items, count
+*/
+const APParse=(function(){
+  "use strict";
+  const isBlank=v=>v===null||v===undefined||(typeof v==="string"&&!v.trim());
+  const fold=s=>String(s??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+
+  /* ---------- amounts ----------
+     Signs: a leading or trailing minus (also the Unicode minus U+2212 and dashes), brackets "(50.00)", and "CR" before
+     or after the number all make it negative; "DR" is dropped. Currency symbols and codes ($, CAD, US$, C$, USD, €, EUR, £)
+     are ignored. Spaces (normal, non-breaking U+00A0, narrow U+202F, thin U+2009) and apostrophes are thousands marks.
+     Comma or dot as decimal:
+       - both present: the one that comes last is the decimal mark ("1,234.56", "1.234,56").
+       - only one kind, used more than once: thousands marks, and the groups must be 3 digits ("1,234,567").
+       - a single dot: always a decimal mark ("1.234" is 1.234).
+       - a single comma followed by exactly 3 digits after 1 to 3 digits (not a lone 0): THOUSANDS, so "1,234" is 1234.
+         This is the ambiguous case; English exports write thousands this way, while French and European exports write
+         "1 234,56" or "1234,56" with two decimals, which the next rule reads correctly.
+       - any other single comma ("12,50", "139,65", "0,125"): the decimal mark.
+     Anything else left over (letters, two numbers, "N/A") is not an amount: NaN. */
+  function amount(v){
+    if(typeof v==="number")return v;
+    if(typeof v==="boolean"||v instanceof Date||isBlank(v))return NaN;
+    let s=String(v).trim().replace(/[\u2212\u2012\u2013\u2014\u2011\u2010\ufe63\uff0d]/g,"-");
+    let neg=false;
+    if(/^\(.*\)$/.test(s)){neg=true;s=s.slice(1,-1).trim()}
+    s=s.replace(/(?<![a-z])(?:cr|dr)\.?\s*$/i,m=>{if(/c/i.test(m))neg=!neg;return""}).replace(/^(?:cr|dr)\.?\s*(?=[-+$(.\d])/i,m=>{if(/c/i.test(m))neg=!neg;return""}).trim();
+    s=s.replace(/(?<![a-z])(?:cad|usd|eur|gbp|us|ca|c)?\s*[$\u20ac\u00a3]|(?<![a-z])(?:cad|usd|eur|gbp)(?![a-z])/gi,"").trim();
+    if(/^\(.*\)$/.test(s)){neg=!neg;s=s.slice(1,-1).trim()}
+    let sign=0;
+    if(/^[-+]/.test(s)){if(s[0]==="-")sign++;s=s.slice(1).trim()}
+    if(/-$/.test(s)){sign++;s=s.slice(0,-1).trim()}
+    if(sign>1)return NaN;if(sign)neg=!neg;
+    const gs=s.match(/[\s\u00a0\u202f\u2009'\u2019]+\d+/g);if(gs&&gs.some(g=>g.replace(/\D/g,"").length!==3))return NaN;
+    s=s.replace(/[\s\u00a0\u202f\u2009'\u2019]/g,"");
+    if(!/^[\d.,]+$/.test(s)||!/\d/.test(s))return NaN;
+    const lc=s.lastIndexOf(","),ld=s.lastIndexOf(".");
+    let int,dec="";
+    if(lc>=0&&ld>=0){const d=Math.max(lc,ld),t=d===lc?".":",";int=s.slice(0,d);dec=s.slice(d+1);
+      if(/[.,]/.test(dec)||int.includes(d===lc?",":"."))return NaN;if(!groupsOk(int,t))return NaN;int=int.split(t).join("")}
+    else if(lc>=0||ld>=0){const c=lc>=0?",":".",parts=s.split(c);
+      if(parts.length>2){if(!groupsOk(s,c))return NaN;int=parts.join("")}
+      else if(c===","&&/^[1-9]\d{0,2}$/.test(parts[0])&&/^\d{3}$/.test(parts[1])){int=parts.join("")}
+      else{int=parts[0];dec=parts[1]}}
+    else int=s;
+    if(!/^\d*$/.test(int)||!/^\d*$/.test(dec)||(!int&&!dec))return NaN;
+    const n=parseFloat((int||"0")+"."+(dec||"0"));
+    return neg?-n:n;
+  }
+  function groupsOk(s,t){const g=s.split(t);return g.length===1||(/^\d{1,3}$/.test(g[0])&&g.slice(1).every(x=>/^\d{3}$/.test(x)))}
+
+  /* ---------- money in whole cents ---------- */
+  function toCents(v){const n=amount(v);if(!isFinite(n))return NaN;const a=Math.round(Math.abs(n)*100+1e-6);return n<0?-a:a}
+  const fromCents=c=>c/100;
+  /* sum of a list in cents; NaN if any item is not an amount, so a bad value is never hidden in a total */
+  function sumCents(list,f=x=>x){let t=0;for(const x of list){const c=toCents(f(x));if(!isFinite(c))return NaN;t+=c}return t}
+
+  /* ---------- dates ---------- */
+  const MONTHS={};
+  [["jan january janv janvier",1],["feb february fev fevr fevrier",2],["mar march mars",3],["apr april avr avril",4],["may mai",5],
+   ["jun june juin",6],["jul july juil juillet",7],["aug august aou aout",8],["sep sept september septembre",9],
+   ["oct october octobre",10],["nov november novembre",11],["dec december decembre",12]].forEach(([w,m])=>w.split(" ").forEach(x=>MONTHS[x]=m));
+  const WEEKDAY=/^(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(day|nesday|rsday|urday)?\.?,?\s+|^(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche),?\s+(le\s+)?/;
+  const year4=y=>y<100?(y<70?2000+y:1900+y):y;
+  function mk(y,m,d){y=year4(y);if(y<1950||y>2150||m<1||m>12||d<1||d>31)return null;const t=new Date(y,m-1,d);return t.getMonth()===m-1&&t.getDate()===d?t:null}
+  const NUM=/^(\d{1,2})[-/.\s](\d{1,2})[-/.\s](\d{2}|\d{4})$/;
+  function stripTime(s){return s.replace(/(?:t|\s+)\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?\s*(?:am|pm|h)?\s*(?:z|[+-]\d{2}:?\d{2})?$/i,"").trim()}
+  /* order: "mdy" (default) or "dmy", used only when both numbers are 12 or less */
+  function date(v,order){
+    if(v instanceof Date)return isNaN(v)?null:new Date(v.getFullYear(),v.getMonth(),v.getDate());
+    if(typeof v==="number"){if(!(v>20000&&v<80000))return null;const u=new Date(Math.round((Math.floor(v)-25569)*864e5));return new Date(u.getUTCFullYear(),u.getUTCMonth(),u.getUTCDate())}
+    if(isBlank(v)||typeof v!=="string"&&typeof v!=="object")return null;
+    let s=stripTime(fold(v).trim());
+    let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);if(m)return mk(+m[1],+m[2],+m[3]);
+    m=s.match(/^(\d{4})(\d{2})(\d{2})$/);if(m)return mk(+m[1],+m[2],+m[3]);
+    m=s.match(NUM);
+    if(m){let a=+m[1],b=+m[2];const dmy=a>12||(b<=12&&order==="dmy");return dmy?mk(+m[3],b,a):mk(+m[3],a,b)}
+    s=s.replace(WEEKDAY,"").replace(/,/g," ").replace(/\b(le|the|of|de|du)\b/g," ").replace(/\s+/g," ").trim();
+    m=s.match(/^(\d{1,2})(?:er|re|st|nd|rd|th)?[\s\-./]*([a-z]+)\.?[\s\-./]*(\d{2}|\d{4})$/);
+    if(m&&MONTHS[m[2]])return mk(+m[3],MONTHS[m[2]],+m[1]);
+    m=s.match(/^([a-z]+)\.?[\s\-./]*(\d{1,2})(?:er|st|nd|rd|th)?[\s\-./]+(\d{4})$/);
+    if(m&&MONTHS[m[1]])return mk(+m[3],MONTHS[m[1]],+m[2]);
+    return null;
+  }
+  /* column-level day/month detection: any first number over 12 means day/month, any second number over 12 means month/day */
+  function dateOrderStats(values){
+    const o={dmy:0,mdy:0,n:0,example:"",first:""};
+    for(const v of values){if(typeof v!=="string")continue;const m=stripTime(v.trim()).match(NUM);if(!m)continue;const a=+m[1],b=+m[2];if(a<1||b<1||a>31||b>31)continue;
+      o.n++;if(!o.first)o.first=v.trim();if(a>12&&b<=12){o.dmy++;if(!o.ex1)o.ex1=v.trim()}else if(b>12&&a<=12){o.mdy++;if(!o.ex2)o.ex2=v.trim()}}
+    o.order=o.dmy&&o.mdy?"mixed":o.dmy?"dmy":o.mdy?"mdy":o.n?"ambiguous":"none";
+    o.example=o.order==="dmy"?o.ex1:o.order==="mdy"?o.ex2:"";delete o.ex1;delete o.ex2;return o;
+  }
+  const dateOrder=values=>dateOrderStats(values).order;
+  /* ambiguous or mixed columns are read month/day (the long-standing default) and flagged so a tool can offer a switch */
+  const useOrder=det=>({order:det==="dmy"?"dmy":"mdy",flag:det==="ambiguous"||det==="mixed"});
+
+  /* ---------- headers ---------- */
+  const normHeader=s=>fold(s).replace(/[^a-z0-9#%/]+/g," ").replace(/\s+/g," ").trim();
+  /* French (and a few English variants) put into the English words the tools' role patterns use */
+  const FR=[[/\bsous[\s-]*tota(l|ux)\b/g,"subtotal"],[/\bdate (de |d )?(la )?facturation\b|\bdate (de |d )?(la )?facture\b|\bdate facture\b/g,"invoice date"],
+    [/\bdate (d |de l )?echeance\b|\becheance\b|\bdate limite\b/g,"due date"],[/\bdate (de |du )?paiement\b/g,"payment date"],
+    [/\b(numero|num|no|n|n\u00ba|n\u00b0) (de )?(la )?facture\b|\bfacture (numero|num|no|n|n\u00ba|n\u00b0)\b|# facture\b/g,"invoice no"],
+    [/\bfactures?\b/g,"invoice"],[/\bmontant (du|a payer|restant|ouvert|impaye)\b|\b(solde|reste) a payer\b|\ba payer\b|\bsolde du\b/g,"amount due"],
+    [/\bmontant (total|ttc)\b|\btotal ttc\b|\bmontant brut\b/g,"total"],[/\bmontant (ht|hors taxes?)\b|\bmontant net\b/g,"net amount"],[/\bmontants?\b/g,"amount"],
+    [/\bfournisseurs?\b/g,"vendor"],[/\bsoldes?\b/g,"balance"],[/\btps\b/g,"gst"],[/\btvh\b/g,"hst"],[/\btvq\b/g,"qst"],[/\btaxes?\b/g,"tax"],
+    [/\bstatut\b|\betat\b/g,"status"],[/\bpaye\b/g,"paid"],[/\bpaiements?\b|\bversements?\b|\breglements?\b/g,"payment"],
+    [/\bconditions( de paiement)?\b|\bmodalites( de paiement)?\b/g,"terms"],[/\bcomptes?\b/g,"account"],[/\bcategories?\b/g,"category"],
+    [/\bsociete\b|\bentreprise\b/g,"company"],[/\bpieces?\b/g,"doc"],[/\breferences?\b/g,"reference"],[/\blibelle\b/g,"description"],
+    [/\bnumero\b|\bn\u00ba|\bn\u00b0/g,"no"],[/\bjours\b/g,"days"],[/\bsuccursales?\b/g,"branch"]];
+  function canonHeader(s){let h=fold(s).replace(/[\u2019']/g," ").replace(/[_\-]+/g," ").replace(/\s+/g," ").trim();FR.forEach(([re,to])=>h=h.replace(re,to));return h}
+  /* the forms a header is matched in. When French words were put into English only the English forms count, so a pattern
+     like "total but not sub" can't match the French "sous-total" */
+  const forms=h=>{const o=String(h??"").trim(),c=canonHeader(o),f=fold(o);
+    return c!==f.replace(/[\u2019']/g," ").replace(/[_\-]+/g," ").replace(/\s+/g," ").trim()?[c,normHeader(c),c,c]:[o,f,normHeader(o),c]};
+  const test=(re,fs)=>!!re&&fs.some(f=>{re.lastIndex=0;return re.test(f)});
+  /* a role is [key,label,pattern,preferred,excluded] or {key,label,re,pref,excl} */
+  function role(r){return Array.isArray(r)?{key:r[0],label:r[1],re:r[2],pref:r[3],excl:r[4]}:r}
+  /* status columns ("Payment Status", "State") are never an amount or date column; a role only gets one when its own
+     pattern is for statuses */
+  const STATUS=/\b(status|state|statut|etat)\b/;
+  /* among plain matches, a header that is a part or a variant (subtotal, tax, due, balance, discount) loses to one that is not,
+     so "Total" beats "Subtotal" and "Invoice date" beats "Due date" unless the role prefers otherwise */
+  const DEMOTE=/sub ?total|\bdue\b|\btax\b|\b(gst|hst|pst|qst|vat|rst)\b|\bbalance\b|\bdiscount\b|\bpaid\b/;
+  function roleScore(h,r){
+    r=role(r);const fs=forms(h);if(!fs[0])return 0;
+    if(r.excl&&(test(r.excl,fs)||test(r.excl,[String(h??"").trim(),fold(h)])))return 0;
+    if(STATUS.test(fs[2])&&!test(r.re,["status","state"]))return 0;
+    if(r.pref&&test(r.pref,fs))return 3;
+    if(!test(r.re,fs))return 0;
+    return DEMOTE.test(fs[3])?1:2;
+  }
+  /* map each role, in the order given, to the best unused column: preferred match, then a plain match, then a demoted one;
+     ties go to the leftmost column. opts.skip(key,map) leaves a role out. Returns {key: column index} */
+  function mapHeaders(headers,roles,opts={}){
+    const map={},used=new Set();
+    roles.map(role).forEach(r=>{if(opts.skip&&opts.skip(r.key,map))return;let best=-1,bs=0;
+      headers.forEach((h,j)=>{if(used.has(j))return;const s=roleScore(h,r);if(s>bs){bs=s;best=j}});
+      if(best>=0){map[r.key]=best;used.add(best)}});
+    return map;
+  }
+  /* how many roles a row of cells looks like headers for: a header row has at least two */
+  function headerScore(row,roles){const cells=(row||[]).map(c=>String(c??""));return roles.map(role).filter(r=>cells.some(c=>c.trim()&&roleScore(c,r)>0)).length}
+
+  /* ---------- keys for matching ----------
+     Same algorithm, byte for byte, as vendorKey and normDocNo in src/batch.js (tests/parse/test.js cross-checks them). */
+  /* vendor: accent-folded, lower case, & = "and", punctuation ignored, a leading "the" and TRAILING legal-form words
+     (English and French) dropped; legal words inside a name stay. "Maple Ridge Supply Ltd." = "MAPLE RIDGE SUPPLY LIMITED" */
+  const foldK=s=>String(s??"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"");
+  const LEGAL=new Set(["ltd","limited","ltee","limitee","inc","incorporated","incorporee","corp","corporation","co","company","cie","compagnie",
+    "llc","llp","lp","ulc","plc","enr","senc","sencrl","srl","sa","sarl"]);
+  function vendorKey(name){
+    const t=foldK(name).toLowerCase().replace(/&/g," and ").replace(/['’`.]/g,"").replace(/[^a-z0-9]+/g," ").trim().split(" ").filter(Boolean);
+    if(t.length>1&&t[0]==="the")t.shift();
+    while(t.length>1&&(LEGAL.has(t[t.length-1])||t[t.length-1]==="and"))t.pop();
+    return t.join("");
+  }
+  /* document numbers: accent-folded, upper case, letters and digits only, a trailing "-00" revision suffix dropped, an
+     INV/INVOICE/BILL/NO/FACTURE label dropped when digits follow, and leading zeros dropped from a digit run at the start or
+     after a letter. INV-0010, inv 10, #10 -> "10"; INV-100 -> "100" (stays different); NE-0078 -> "NE78"; NOV-2026 -> "NOV2026" */
+  function normDocNo(raw){
+    let s=foldK(raw).toUpperCase().trim().replace(/[-\s]00$/,"").replace(/[^A-Z0-9]/g,"");
+    s=s.replace(/^(?:INVOICE|INV|BILL|FACTURE|NUMBER|NUM|NO)+(?=\d)/,"");
+    return s.replace(/(^|[A-Z])0+(?=\d)/g,"$1");
+  }
+  const refKey=normDocNo;
+
+  /* ---------- export cells ----------
+     A cell starting with = + - @ tab or CR would run as a formula in a spreadsheet: it gets a leading apostrophe,
+     unless it is a plain number like -50.00. CSV quotes cells with commas, quotes or line breaks; TSV turns tabs and
+     line breaks inside a cell into spaces so the columns stay put. */
+  const PLAIN_NUM=/^[-+]?(\d+|\d{1,3}(,\d{3})+)(\.\d+)?$/;
+  function safe(v){if(typeof v==="number")return isFinite(v)?String(v):"";const s=String(v??"");return/^[=+\-@\t\r]/.test(s)&&!PLAIN_NUM.test(s.trim())?"'"+s:s}
+  function csvCell(v){const s=safe(v);return/[",\r\n;]/.test(s)||/^\s|\s$/.test(s)?`"${s.replace(/"/g,'""')}"`:s}
+  const tsvCell=v=>safe(typeof v==="number"?v:String(v??"").replace(/[\t\r\n]+/g," "));
+
+  /* ---------- rows that could not be read ----------
+     const sk=APParse.skips(); ... sk.add(sheetRow,"amount \"N/A\" is not a number",cells); then show sk.count and sk.items */
+  function skips(){const items=[];return{items,add(row,reason,cells){items.push({row,reason,cells:cells||null})},get count(){return items.length},clear(){items.length=0}}}
+
+  return{amount,toCents,fromCents,sumCents,isBlank,date,dateOrder,dateOrderStats,useOrder,fold,normHeader,canonHeader,role,roleScore,mapHeaders,headerScore,
+    vendorKey,refKey,normDocNo,csvCell,tsvCell,skips,MONTHS};
+})();
+if(typeof module!=="undefined"&&module.exports)module.exports=APParse;
+/* ===== end AP shared parsing */
+
+
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const money=n=>(n<0?"−$":"$")+Math.abs(n).toLocaleString("en-CA",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -233,69 +442,113 @@ function copyText(txt,btn,orig){
 }
 $("copyEmail").addEventListener("click",e=>copyText(CONFIG.email,e.currentTarget,"Copy"));
 
-/* ---------- parsing ---------- */
-const ROLES=[["date","Date",/date/i],["amount","Amount",/amount|total|balance|amt|debit/i],["inv","Invoice / bill number",/invoice|inv\b|inv\.|ref|bill\s*(no|#|num)|doc(ument)?\s*(no|#|num)|^no\.?$|^num|number/i],["vendor","Vendor",/vendor|supplier|payee|name|contact/i]];
-const VROLES=[["bank",/bank|account|acct|transit|iban/i],["phone",/phone|tel\b|telephone|mobile/i],["addr",/address|street|addr/i],["vendor",/vendor|supplier|payee|name|company/i]];
-let table=null,headers=[],mapping={},rowBase=2,vendors=[],vendorsSample=false;
+/* ---------- parsing ----------
+   Amounts, dates, headers and vendor/reference keys come from APParse (the shared AP parsing block above).
+   Roles are [key,label,pattern,preferred,excluded]: Total beats Subtotal, the bill date beats the due date, French headers count. */
+const ROLES=[["date","Date",/date/i,/^(?!.*(due|paid|pay|payment)).*date/i],
+  ["amount","Amount",/amount|total|balance|amt|debit/i,/^(?!.*(sub|balance|tax|hst|gst|pst|qst|vat|discount|paid|due)).*(total|amount|amt)/i],
+  ["inv","Invoice / bill number",/invoice|inv\b|inv\.|ref|bill\s*(no|#|num)|doc(ument)?\s*(no|#|num)|^no\.?$|^num|number/i,/(invoice|bill|doc(ument)?|ref(erence)?)\s*(no|#|num)|^(invoice|bill|ref|reference)$/i,/\b(date|total|subtotal|amount|amt|tax)\b/i],
+  ["vendor","Vendor",/vendor|supplier|payee|name|contact/i,/vendor|supplier|payee/i]];
+const VROLES=[["bank","Bank account",/bank|account|acct|transit|iban/i],["phone","Phone",/phone|tel\b|telephone|mobile/i],["addr","Address",/address|adresse|street|addr/i],["vendor","Vendor",/vendor|supplier|payee|name|company/i]];
+let table=null,headers=[],mapping={},rowBase=2,vendors=[],vendorsSample=false,isSampleData=true;
+let DATES={det:"none",example:"",first:""},order="mdy",switched=false,READ={rows:0,read:0,unread:0,badDate:0,zero:0,items:[]};
 const reviewed=new Set();
 let R={dup:[],fr:[],rc:[]};
 
 function headerRow(rows,roles){
-  for(let i=0;i<Math.min(rows.length,80);i++){
-    const r=(rows[i]||[]).map(c=>String(c??""));let hits=0;
-    roles.forEach(x=>{const re=x[x.length-1];if(r.some(c=>re.test(c)))hits++});
-    if(hits>=2)return i;
-  }
+  for(let i=0;i<Math.min(rows.length,80);i++)if(APParse.headerScore(rows[i],roles)>=2)return i;
   return -1;
 }
-function amt(v){if(typeof v==="number")return v;let s=String(v??"").trim();if(!s)return NaN;const neg=/^\(.*\)$/.test(s)||s.startsWith("-");s=s.replace(/[^0-9.]/g,"");const n=parseFloat(s);return neg?-n:n}
-function dt(v){
-  if(v instanceof Date&&!isNaN(v))return new Date(v.getFullYear(),v.getMonth(),v.getDate());
-  if(typeof v==="number"&&v>20000&&v<80000){const u=new Date(Math.round((v-25569)*DAY));return new Date(u.getUTCFullYear(),u.getUTCMonth(),u.getUTCDate())}
-  const s=String(v??"").trim();if(!s)return null;
-  let m=s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);if(m)return new Date(+m[1],m[2]-1,+m[3]);
-  m=s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
-  if(m){let y=+m[3];if(y<100)y+=2000;let a=+m[1],b=+m[2];if(a>12)[a,b]=[b,a];return new Date(y,a-1,b)}
-  const p=Date.parse(s);if(isNaN(p))return null;const d=new Date(p);return new Date(d.getFullYear(),d.getMonth(),d.getDate());
-}
-const SUFFIX=/\b(limited|ltd|incorporated|inc|corporation|corp|company|co|llc|llp|lp|ulc|the)\b/g;
-const vKey=v=>String(v??"").toLowerCase().replace(/&/g," and ").replace(/[^a-z0-9 ]+/g,"").replace(SUFFIX," ").replace(/\s+/g,"");
+const amt=APParse.amount;
+const vkC=new Map(),vKey=v=>{let k=vkC.get(v);if(k===undefined){k=APParse.vendorKey(v);vkC.set(v,k)}return k};
+const iKey=APParse.refKey;
 const digKey=k=>{const d=String(k||"").replace(/[-\s]00$/,"").replace(/\D/g,"").replace(/^0+/,"");return d.length>=6?d:""};
-function iKey(v){let s=String(v??"").toUpperCase().trim().replace(/[-\s]00$/,"").replace(/[^A-Z0-9]/g,"");s=s.replace(/^(INVOICE|INV|NO|BILL)/,"");return s.replace(/^0+(?=\d)/,"")}
+/* the running number in an invoice number, for the "numbers in order" check. Date-coded numbers (2026-05, HI-2026-05,
+   202605, 20260514) are left out: they rise with the calendar, not with the vendor's number of customers */
+function seqNum(inv){
+  const g=String(inv).match(/\d+/g);if(!g)return null;
+  const last=g[g.length-1];
+  if(g.length>=2&&/^(19|20)\d\d$/.test(g[g.length-2])&&last.length<=2)return null;
+  if(/^(19|20)\d\d$/.test(last)&&g.length>=2)return null;
+  if(/^(19|20)\d\d(0[1-9]|1[0-2])$/.test(last)||(/^(19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])$/.test(last)))return null;
+  return parseInt(last,10);
+}
 function aKey(s){s=String(s??"").toLowerCase().replace(/[.,#]/g," ").replace(/\bstreet\b/g,"st").replace(/\bavenue\b/g,"ave").replace(/\broad\b/g,"rd").replace(/\bboulevard\b/g,"blvd").replace(/\bdrive\b/g,"dr").replace(/\b(suite|unit|apt|ste)\b/g," ");const t=s.split(/\s+/).filter(Boolean);return t.length>=3?t.sort().join(" "):""}
 const digits=s=>String(s??"").replace(/\D/g,"");
 function lev(a,b){if(a===b)return 0;const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
 const sim=(a,b)=>!a||!b?0:a===b?1:1-lev(a,b)/Math.max(a.length,b.length);
 function groupBy(arr,f){const m=new Map();arr.forEach(x=>{const k=f(x);if(!m.has(k))m.set(k,[]);m.get(k).push(x)});return m}
+const longD=d=>d.toLocaleDateString("en-CA",{year:"numeric",month:"long",day:"numeric"});
 
 function showErr(id,m){$(id).textContent=m;$(id).hidden=false}
+/* day/month or month/day, decided once per file from every column: a value like 25/10/2026 settles it; if nothing does,
+   dates are read month/day and a switch is shown */
+function findDateOrder(rows,hi){
+  const data=rows.slice(hi+1,hi+5001),dets=[];let st=null;
+  for(let j=0;j<headers.length;j++){const s=APParse.dateOrderStats(data.map(r=>r&&r[j]));if(s.order==="none")continue;dets.push(s);if(!st||s.n>st.n)st=s}
+  const has=o=>dets.some(s=>s.order===o);
+  const det=has("mixed")||(has("dmy")&&has("mdy"))?"mixed":has("dmy")?"dmy":has("mdy")?"mdy":dets.length?"ambiguous":"none";
+  const ex=dets.find(s=>s.order===det)||st||{};
+  DATES={det,example:ex.example||"",first:(st&&st.first)||""};order=APParse.useOrder(det).order;switched=false;
+}
+function dateNote(){
+  const el=$("dates"),D=DATES;
+  if(D.det==="none"||(D.det==="mdy"&&!switched)){el.hidden=true;el.innerHTML="";return}
+  const dm=order==="dmy",ex=D.first&&APParse.date(D.first,order);let h;
+  if(D.det==="dmy"&&!switched)h=`Dates are read as day/month, because the file has ${esc(D.example)}.`;
+  else{h=D.det==="mixed"?`<b>Please check the dates:</b> some only make sense as day/month and others only as month/day. `:
+      D.det==="ambiguous"?"Dates like these can be read two ways. ":"";
+    h+=`<b>Dates are read as ${dm?"day/month":"month/day"}</b>`+(ex?`, so ${esc(D.first)} is ${longD(ex)}.`:".")+
+      ` <button class="btn ghost sm" type="button" id="dateSwitch">Switch to ${dm?"month/day":"day/month"}</button>`}
+  el.innerHTML=h;el.hidden=false;
+  const b=$("dateSwitch");if(b)b.addEventListener("click",()=>{order=order==="dmy"?"mdy":"dmy";switched=true;Bc=null;dateNote();run()});
+}
 function loadRows(rows,label,isSample){
   $("err").hidden=true;
   const hi=headerRow(rows,ROLES);
   if(hi<0||rows.length<hi+2){showErr("err","Couldn't find the bill columns. Make sure the file has a header row with names like Date, Vendor, Invoice and Amount.");return}
   headers=rows[hi].map((c,i)=>String(c??"").trim()||"Column "+(i+1));
-  table=rows.slice(hi+1);rowBase=hi+2;
-  mapping={};const used=new Set();
-  ROLES.forEach(([k,,re])=>{const i=headers.findIndex((x,j)=>!used.has(j)&&re.test(x));if(i>=0){mapping[k]=i;used.add(i)}});
+  table=rows.slice(hi+1);rowBase=hi+2;isSampleData=!!isSample;sourceLabel=label;
+  mapping=APParse.mapHeaders(headers,ROLES);
   snapCols(rows,hi,headers,mapping);
+  findDateOrder(rows,hi);
   reviewed.clear();Bc=null;SHOWN.dup=SHOWN.fr=STEP;SHOWN.rc=STEP*4;
   if(!isSample&&vendorsSample){vendors=[];vendorsSample=false;$("vsource").textContent="No vendor list loaded."}
-  $("source").innerHTML=`${esc(label)} · ${table.filter(r=>r&&r.some(c=>String(c??"").trim())).length} rows`+(isSample?'<span class="tag">Example data</span>':"");
   $("map").innerHTML=ROLES.map(([k,l])=>`<label class="fld" for="m_${k}">${l} column<select id="m_${k}" data-k="${k}"><option value="">Not in file</option>${headers.map((h,i)=>`<option value="${i}"${mapping[k]===i?" selected":""}>${esc(h)}</option>`).join("")}</select></label>`).join("");
   $("map").querySelectorAll("select").forEach(s=>s.addEventListener("change",()=>{mapping[s.dataset.k]=s.value===""?undefined:+s.value;Bc=null;run()}));
+  dateNote();
   run();
 }
+let sourceLabel="";
+/* "N of M rows read", a warning when nothing or a meaningful share couldn't be read, and the list of rows not read */
+function readNote(){
+  const Q=READ,tag=isSampleData?'<span class="tag">Example data</span>':"";
+  $("source").innerHTML=`${esc(sourceLabel)} · ${Q.read.toLocaleString("en-CA")} of ${Q.rows.toLocaleString("en-CA")} rows read`+tag;
+  const w=$("warn");
+  if(!Q.read){w.innerHTML=`<b>No bills could be read from this file, so nothing was checked.</b> Check that the Amount column below is the one with the bill amounts`+(Q.unread?", and see the rows listed below.":".");w.hidden=false}
+  else if(incomplete()){w.innerHTML=`<b>Only part of this file could be read.</b> ${(Q.unread+Q.badDate).toLocaleString("en-CA")} of ${Q.rows.toLocaleString("en-CA")} rows have an amount or date that couldn't be read, so the checks below are not complete. The rows are listed below.`;w.hidden=false}
+  else w.hidden=true;
+  const el=$("skips"),n=Q.items.length;
+  if(!n){el.innerHTML="";return}
+  const open=!!(el.querySelector("details")||{}).open,parts=[];
+  if(Q.unread)parts.push(`${Q.unread.toLocaleString("en-CA")} row${Q.unread===1?"":"s"} couldn't be read`);
+  if(Q.badDate)parts.push(`${Q.badDate.toLocaleString("en-CA")} read without a date`);
+  if(Q.zero)parts.push(`${Q.zero.toLocaleString("en-CA")} with a $0 amount left out`);
+  el.innerHTML=`<details class="skips"${open?" open":""}><summary>${parts.join(" · ")}</summary><ul>${Q.items.slice(0,200).map(i=>`<li><span class="mono">Row ${i.row}</span>: ${esc(i.reason)}</li>`).join("")}</ul>${n>200?`<p class="note">and ${(n-200).toLocaleString("en-CA")} more.</p>`:""}</details>`;
+}
+/* a meaningful share (5% or more) of rows with an amount or date that couldn't be read */
+const incomplete=()=>READ.rows>0&&(READ.unread+READ.badDate)/READ.rows>=0.05;
+const nothingRead=()=>!!table&&!READ.read;
 function loadVendors(rows,label,isSample){
   $("verr").hidden=true;
   const hi=headerRow(rows,VROLES);
   if(hi<0){showErr("verr","Couldn't find the columns in that vendor list. It needs a header row with Vendor plus Address, Phone or Bank account.");return}
-  const h=rows[hi].map(c=>String(c??""));const m={},used=new Set();
-  VROLES.forEach(([k,re])=>{const i=h.findIndex((x,j)=>!used.has(j)&&re.test(x));if(i>=0){m[k]=i;used.add(i)}});
+  const h=rows[hi].map(c=>String(c??""));const m=APParse.mapHeaders(h,VROLES);
   if(m.vendor===undefined){showErr("verr","Couldn't find a vendor name column in that file.");return}
   const g=(r,k)=>m[k]===undefined?"":String(r[m[k]]??"").trim();
-  vendors=rows.slice(hi+1).map(r=>({name:g(r,"vendor"),addr:g(r,"addr"),phone:g(r,"phone"),bank:g(r,"bank")})).filter(v=>v.name).map(v=>{
+  vendors=rows.slice(hi+1).map(r=>r?{name:g(r,"vendor"),addr:g(r,"addr"),phone:g(r,"phone"),bank:g(r,"bank")}:{name:""}).filter(v=>v.name).map(v=>{
     const p=digits(v.phone),b=digits(v.bank);
-    return{...v,vk:vKey(v.name),aKey:aKey(v.addr),pKey:p.length>=10?p.slice(-10):"",bKey:b.length>=7?b:"",po:/\bp\.?\s*o\.?\s*box\b|post office box/i.test(v.addr)};
+    return{...v,vk:vKey(v.name),aKey:aKey(v.addr),pKey:p.length>=10?p.slice(-10):"",bKey:b.length>=7?b:"",po:/\bp\.?\s*o\.?\s*box\b|post office box|\bcase postale\b|\bc\.?p\.?\s*\d/i.test(v.addr)};
   });
   vendorsSample=isSample;
   const cols=[["addr","addresses"],["phone","phone numbers"],["bank","bank accounts"]].filter(([k])=>m[k]!==undefined).map(x=>x[1]);
@@ -315,23 +568,37 @@ function trimWs(w){if(!w||w.__trim)return;let R=0,C=0;for(const k in w){if(k[0]=
 function pickSheet(wb,roles){for(const n of wb.SheetNames){const w=wb.Sheets[n];trimWs(w);const rg=XLSX.utils.decode_range(w["!ref"]);rg.e.r=Math.min(rg.e.r,80);if(headerRow(XLSX.utils.sheet_to_json(w,{header:1,raw:true,defval:"",blankrows:true,range:rg}),roles)>=0)return w}const w=wb.Sheets[wb.SheetNames[0]];trimWs(w);return w}
 function readFile(f,cb,roles){
   if(!f)return;
-  if(typeof XLSX==="undefined"){showErr("err","The spreadsheet reader didn't load. Check your internet connection and reload the page.");return}
-  const st=roles===VROLES?$("vsource"):$("source");st.textContent=`Reading ${f.name}…`;
+  const vend=roles===VROLES,errId=vend?"verr":"err";
+  if(typeof XLSX==="undefined"){showErr(errId,"The spreadsheet reader didn't load. Check your internet connection and reload the page.");return}
+  const st=vend?$("vsource"):$("source");st.textContent=`Reading ${f.name}…`;
   const r=new FileReader();
-  r.onload=e=>setTimeout(()=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
+  r.onload=e=>setTimeout(()=>{try{
+    /* CSV cells stay as text so dates like 03/04/2026 are read by the day/month rules, not guessed by the reader */
+    const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array",raw:/\.(csv|tsv|txt)$/i.test(f.name)});
     const ws=pickSheet(wb,roles||ROLES);cb(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:"",blankrows:true}),f.name)}
-    catch(err){showErr("err","Couldn't read that file. Save it as .xlsx or .csv and try again.")}},30);
+    catch(err){showErr(errId,"Couldn't read that file. Save it as .xlsx or .csv and try again.");st.textContent=vend?"No vendor list loaded.":""}},30);
+  r.onerror=()=>showErr(errId,"Couldn't open that file. If it's stored online, download it to this device first and try again.");
   r.readAsArrayBuffer(f);
 }
 function bills(){
   const get=(r,k)=>mapping[k]===undefined?"":r[mapping[k]];
-  return table.map((r,i)=>{
-    if(!r)return null;
-    const vendor=String(get(r,"vendor")??"").trim(),inv=String(get(r,"inv")??"").trim(),a=amt(get(r,"amount"));
-    const m=inv.match(/(\d+)(?!.*\d)/),d=dt(get(r,"date"));
-    if(!vendor&&!inv&&!d)return null; /* totals rows */
-    return{row:rowBase+i,vendor,inv,amt:a,date:d,vk:vKey(vendor),ik:iKey(inv),dk:digKey(inv),invNum:m?parseInt(m[1],10):null,cents:Math.round(a*100)};
-  }).filter(b=>b&&isFinite(b.amt)&&b.amt!==0);
+  const dC=new Map(),dt=v=>{if(typeof v!=="string")return APParse.date(v,order);let d=dC.get(v);if(d===undefined){d=APParse.date(v,order);dC.set(v,d)}return d};
+  const cell=v=>String(v).trim().slice(0,40);
+  const Q={rows:0,read:0,unread:0,badDate:0,zero:0,items:[]},out=[];
+  table.forEach((r,i)=>{
+    if(!r||!r.some(c=>!APParse.isBlank(c)))return;
+    const row=rowBase+i,vendor=String(get(r,"vendor")??"").trim(),inv=String(get(r,"inv")??"").trim();
+    const av=get(r,"amount"),dv=get(r,"date"),a=amt(av),d=dt(dv);
+    if(!vendor&&!inv&&APParse.isBlank(dv))return; /* totals and note lines */
+    Q.rows++;
+    if(!isFinite(a)){Q.unread++;Q.items.push({row,reason:APParse.isBlank(av)?"left out: no amount":`left out: amount "${cell(av)}" isn't a number`});return}
+    if(a===0){Q.zero++;Q.items.push({row,reason:"left out: the amount is $0"});return}
+    Q.read++;
+    if(!d&&!APParse.isBlank(dv)){Q.badDate++;Q.items.push({row,reason:`read without a date: "${cell(dv)}" isn't a date`})}
+    out.push({row,vendor,inv,amt:a,date:d,vk:vKey(vendor),ik:iKey(inv),dk:digKey(inv),invNum:inv?seqNum(inv):null,cents:APParse.toCents(a)});
+  });
+  READ=Q;readNote();
+  return out;
 }
 
 /* ---------- 1. duplicates ---------- */
@@ -341,18 +608,24 @@ function findDuplicates(B){
   const win=Math.max(0,+$("win").value||0),thr=+$("sim").value,N=B.length;
   const parent=B.map((_,i)=>i),find=i=>{while(parent[i]!==i){parent[i]=parent[parent[i]];i=parent[i]}return i};
   const edges=[],seen=new Set(),simC=new Map();
+  /* a vendor billing the same amount every week (3+ bills, each 6 to 8 days after the last) is a schedule, not a duplicate */
+  const weekly=new Set();
+  groupBy(B.filter(b=>b.date&&b.vk),b=>b.vk+"|"+b.cents).forEach((L,k)=>{if(L.length<3)return;L.sort((x,y)=>x.date-y.date);
+    for(let i=1;i<L.length;i++){const g=Math.round((L[i].date-L[i-1].date)/DAY);if(g<6||g>8)return}weekly.add(k)});
   const vsim=(x,y)=>{if(!x||!y)return 0;if(x===y)return 1;const k=x<y?x+"|"+y:y+"|"+x;let v=simC.get(k);
     if(v===undefined){const la=x.length,lb=y.length;v=1-Math.abs(la-lb)/Math.max(la,lb)<thr?0:sim(x,y);simC.set(k,v)}return v};
   const pair=(i,j)=>{if(i===j)return;if(i>j){const t=i;i=j;j=t}const key=i*N+j;if(seen.has(key))return;seen.add(key);
     const a=B[i],b=B[j];
     const sameAmt=a.cents===b.cents,sameInv=(a.ik&&a.ik===b.ik)||(a.dk&&a.dk===b.dk);
     if(!sameAmt&&!sameInv)return;
+    /* a bill and a credit (one positive, one negative) cancel out; they are never a duplicate of each other */
+    if((a.cents<0)!==(b.cents<0))return;
     const vend=(a.vk&&a.vk===b.vk)||vsim(a.vk,b.vk)>=thr;
     const days=a.date&&b.date?Math.round(Math.abs(a.date-b.date)/DAY):null;
     let sev=0,why="";
     if(vend&&sameInv&&sameAmt){sev=3;why="Same invoice number and amount from the same vendor"}
     else if(vend&&sameInv){sev=2;why="Same invoice number from the same vendor, but the amounts differ"}
-    else if(vend&&sameAmt&&days!==null&&days<=win){const both=a.ik&&b.ik;sev=both?1:2;why=`Same amount from the same vendor ${days===0?"on the same day":days+" day"+(days===1?"":"s")+" apart"}`+(both?", with different invoice numbers":"")}
+    else if(vend&&sameAmt&&days!==null&&days<=win){const both=a.ik&&b.ik;if(both&&a.vk===b.vk&&weekly.has(a.vk+"|"+a.cents))return;sev=both?1:2;why=`Same amount from the same vendor ${days===0?"on the same day":days+" day"+(days===1?"":"s")+" apart"}`+(both?", with different invoice numbers":"")}
     else if(!vend&&sameInv&&sameAmt&&a.ik.length>=3){sev=1;why="Same invoice number and amount under two different vendor names"}
     if(sev){edges.push([i,j,sev,why]);parent[find(i)]=find(j)}};
   const allPairs=L=>{for(let x=0;x<L.length;x++)for(let y=x+1;y<L.length;y++)pair(L[x],L[y])};
@@ -371,8 +644,8 @@ function findDuplicates(B){
     const rows=[...g.idx].map(i=>B[i]).sort((x,y)=>(x.date||0)-(y.date||0)||x.row-y.row);
     const names=new Set(rows.map(r=>r.vendor).filter(Boolean));
     if(names.size>1&&g.sev>=2)g.why.add(`This vendor appears under ${names.size} different names`);
-    const total=rows.reduce((s,r)=>s+r.amt,0),max=rows.reduce((m,r)=>Math.max(m,r.amt),-Infinity);
-    return{rows,sev:g.sev,why:[...g.why].map(t=>({t,s:g.sev})),risk:g.sev>=2?total-max:0,key:"d"+rows.map(r=>r.row).join("-"),name:rows[0].vendor};
+    const pos=rows.filter(r=>r.amt>0),total=pos.reduce((s,r)=>s+r.amt,0),max=pos.reduce((m,r)=>Math.max(m,r.amt),0);
+    return{rows,sev:g.sev,why:[...g.why].map(t=>({t,s:g.sev})),risk:g.sev>=2?Math.max(0,total-max):0,key:"d"+rows.map(r=>r.row).join("-"),name:rows[0].vendor};
   }).sort((a,b)=>b.sev-a.sev||b.risk-a.risk);
 }
 
@@ -472,7 +745,8 @@ function bindTog(root){const set=(b,open)=>{const k=b.dataset.tog,body=root.quer
   const a=root.querySelector("[data-all]");if(a)a.querySelectorAll("button").forEach(x=>x.addEventListener("click",()=>root.querySelectorAll("[data-tog]").forEach(b=>set(b,x.dataset.open==="1"))))}
 function renderDup(){
   const el=$("dupOut");
-  if(!R.dup.length){el.innerHTML='<div class="empty">No likely duplicates found. Try looser vendor matching or a wider day window if you expected some.</div>';return}
+  if(nothingRead()){el.innerHTML=NONE;return}
+  if(!R.dup.length){el.innerHTML=`<div class="empty">${incomplete()?`No likely duplicates among the ${READ.read.toLocaleString("en-CA")} bills that could be read. Part of the file couldn't be read, so this isn't a full check.`:"No likely duplicates found. Try looser vendor matching or a wider day window if you expected some."}</div>`;return}
   el.innerHTML=allBar(R.dup.length)+R.dup.slice(0,SHOWN.dup).map(g=>{const[c,t]=SEV[g.sev];return`<article class="card ${c}${reviewed.has(g.key)?" done":""}">
     <div class="chead"><div class="l"><span class="pill">${t}</span><span class="vname">${esc(g.name)}</span></div><div class="row">${g.risk?`<span class="money">${money(g.risk)} at risk</span>`:""}${togBtn(g.key)}</div></div>
     <ul class="reasons">${g.why.map(w=>`<li>${esc(w.t)}</li>`).join("")}</ul>${togBody(g.key,billTable(g.rows))}${reviewBox(g.key)}</article>`}).join("")+moreBar("dup",R.dup.length);
@@ -480,7 +754,8 @@ function renderDup(){
 }
 function renderFraud(){
   const el=$("frOut");
-  if(!R.fr.length){el.innerHTML='<div class="empty">No red flags found with these settings.</div>';return}
+  if(nothingRead()){el.innerHTML=NONE;return}
+  if(!R.fr.length){el.innerHTML=`<div class="empty">${incomplete()?"No red flags among the bills that could be read. Part of the file couldn't be read, so this isn't a full check.":"No red flags found with these settings."}</div>`;return}
   el.innerHTML=allBar(R.fr.length)+R.fr.slice(0,SHOWN.fr).map(f=>{const[c,,lab]=SEV[f.sev];return`<article class="card ${c}${reviewed.has(f.key)?" done":""}">
     <div class="chead"><div class="l"><span class="pill">${lab} risk</span><span class="vname">${esc(f.name)}</span></div><div class="row">${f.total?`<span class="money">${money(f.total)} billed</span>`:""}${f.rows.length?togBtn(f.key):""}</div></div>
     <ul class="reasons">${f.why.map(w=>`<li class="sev${w.s}">${esc(w.t)}</li>`).join("")}</ul>${f.rows.length?togBody(f.key,billTable(f.rows)):""}${reviewBox(f.key)}</article>`}).join("")+moreBar("fr",R.fr.length);
@@ -488,13 +763,16 @@ function renderFraud(){
 }
 function renderRecurring(){
   const el=$("rcOut");
-  if(!R.rc.length){el.innerHTML='<div class="empty">No recurring charges found. They need at least three bills a month apart, or two a quarter or a year apart, from the same vendor.</div>';return}
+  if(nothingRead()){el.innerHTML=NONE;return}
+  if(!R.rc.length){el.innerHTML='<div class="empty">'+(incomplete()?"Part of the file couldn't be read, so some recurring charges may be missing. ":"")+'No recurring charges found. They need at least three bills a month apart, or two a quarter or a year apart, from the same vendor.</div>';return}
   el.innerHTML=`<div class="panel" style="padding:8px 14px"><div class="tablewrap"><table style="min-width:620px"><thead><tr><th>Vendor</th><th>How often</th><th class="num">Latest</th><th class="num">Per year</th><th class="num">Change</th><th>Last charged</th><th>Checked</th></tr></thead><tbody>
   ${R.rc.slice(0,SHOWN.rc).map(r=>`<tr class="${r.stopped?"stopped":""}${reviewed.has(r.key)?" done":""}"><td>${esc(r.name)}${r.stopped?' <span class="pill low">May have stopped</span>':""}</td><td>${r.freq} · ${r.n} bills</td><td class="num">${money(r.latest)}</td><td class="num">${r.stopped?"–":money0(r.yearly)}</td><td class="num">${Math.abs(r.change)<0.05?"–":`<span class="${r.up?"pill med":""}">${r.change>0?"+":""}${r.change.toFixed(1)}%</span>`}</td><td class="mono">${fmtD(r.last)}</td><td><input type="checkbox" aria-label="Checked ${esc(r.name)}" data-key="${r.key}"${reviewed.has(r.key)?" checked":""}></td></tr>`).join("")}
   </tbody></table></div></div>${moreBar("rc",R.rc.length)}`;
   bindReview(el);bindMore(el,renderRecurring);
 }
+const NONE='<div class="empty">Nothing was checked, because no bills could be read from this file. See the note under the file name above.</div>';
 function renderTiles(){
+  if(nothingRead()){[["tDup","tDupS","tab-duplicates"],["tFr","tFrS","tab-red-flags"],["tRc","tRcS","tab-recurring"]].forEach(([b,s,t])=>{$(b).textContent="–";$(s).textContent="nothing checked: no bills read";$(t).classList.remove("alert")});return}
   const risk=R.dup.reduce((s,g)=>s+g.risk,0);
   $("tDup").textContent=money0(risk);$("tDupS").textContent=`possibly paid twice · ${R.dup.length} group${R.dup.length===1?"":"s"} to check`;
   $("tab-duplicates").classList.toggle("alert",risk>0);
@@ -523,7 +801,9 @@ window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(TABS
 
 /* ---------- copy report ---------- */
 $("copy").addEventListener("click",e=>{
-  const L=[`AP HEALTH CHECK`,""];
+  const L=[`AP HEALTH CHECK`+(isSampleData?" (EXAMPLE DATA, not your bills)":""),`${sourceLabel}: ${READ.read} of ${READ.rows} rows read`,""];
+  if(nothingRead())L.push("No bills could be read from this file, so nothing was checked.","");
+  else if(incomplete())L.push("Part of this file couldn't be read, so the checks below are not complete.","");
   L.push(`DUPLICATE BILLS: ${money(R.dup.reduce((s,g)=>s+g.risk,0))} possibly paid twice`);
   R.dup.forEach(g=>{L.push(`- ${SEV[g.sev][1]}: ${g.name}${g.risk?` (${money(g.risk)} at risk)`:""}`);g.why.forEach(w=>L.push(`    ${w.t}`));g.rows.forEach(r=>L.push(`    Row ${r.row} | ${fmtD(r.date)} | ${r.vendor} | ${r.inv} | ${money(r.amt)}`))});
   L.push("",`FRAUD RED FLAGS: ${R.fr.length} vendors`);
@@ -535,8 +815,8 @@ $("copy").addEventListener("click",e=>{
 });
 
 /* ---------- inputs ---------- */
-$("file").addEventListener("change",e=>readFile(e.target.files[0],(rows,n)=>loadRows(rows,n,false)));
-$("vfile").addEventListener("change",e=>readFile(e.target.files[0],(rows,n)=>loadVendors(rows,n,false),VROLES));
+$("file").addEventListener("change",e=>{readFile(e.target.files[0],(rows,n)=>loadRows(rows,n,false));e.target.value=""});
+$("vfile").addEventListener("change",e=>{readFile(e.target.files[0],(rows,n)=>loadVendors(rows,n,false),VROLES);e.target.value=""});
 const drop=$("drop");
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
