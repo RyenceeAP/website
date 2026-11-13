@@ -1,0 +1,43 @@
+/* Sign-in pages and the private area. Same paper, ink and type as the main site. */
+:root{--paper:#F3F6F2;--sheet:#FFFFFF;--ink:#18242B;--muted:#55626B;--rule:#D3DBD5;--ledger:#2F5F93;--bad:#A12B1F;--good:#1F6B45}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+/* a protected page shows nothing until guard.js has confirmed a session */
+html.locked body{visibility:hidden}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Schibsted Grotesk",system-ui,sans-serif;font-size:1.0625rem;line-height:1.55;
+  min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
+[hidden]{display:none!important}
+.card{width:100%;max-width:420px;background:var(--sheet);border:1px solid var(--rule);border-radius:12px;padding:28px 24px;display:grid;gap:14px}
+.name{font-weight:700;font-size:1rem;text-decoration:none;color:var(--ink)}
+.name span{font-weight:400;color:var(--muted)}
+h1{font-size:1.5rem;line-height:1.2;margin:6px 0 0;text-wrap:balance}
+.lede{margin:0;color:var(--muted)}
+form{display:grid;gap:14px}
+.fld{display:grid;gap:6px;font-size:.9rem;font-weight:600}
+.fld input,.fld textarea{font:inherit;font-weight:400;color:var(--ink);background:#fff;border:1.5px solid var(--rule);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+.fld textarea{font:400 .75rem/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical;word-break:break-all}
+.fld input:focus-visible,.fld textarea:focus-visible,.btn:focus-visible,.link:focus-visible{outline:3px solid var(--ledger);outline-offset:2px}
+.hint{margin:-6px 0 0;font-size:.85rem;color:var(--muted)}
+.captcha{min-height:65px}
+.captcha:empty{min-height:0}
+.msg{margin:0;font-size:.92rem;min-height:1.4em}
+.msg:empty{display:none}
+.msg.bad{color:var(--bad)}
+.msg.good{color:var(--good)}
+.btn{font:600 1rem/1.2 "Schibsted Grotesk",system-ui,sans-serif;border:0;border-radius:8px;padding:12px 18px;cursor:pointer;text-align:center}
+.btn-primary{background:var(--ink);color:#fff}
+.btn-primary:hover{background:#2B3B45}
+.btn-quiet{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.btn:disabled{opacity:.6;cursor:default}
+.links{margin:4px 0 0;display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:space-between}
+.link{font:inherit;font-size:.92rem;color:var(--ledger);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
+
+/* private area: a slim strip with the account and Sign out, then the tools filling the rest */
+body.app{display:flex;flex-direction:column;padding:0;height:100vh;height:100dvh;min-height:0;overflow:hidden;place-items:initial}
+.strip{flex:none;display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:4px max(12px,env(safe-area-inset-right,0px)) 4px 12px;
+  background:var(--ink);color:#fff;font-size:.8rem;min-width:0}
+.strip .who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.8}
+.strip .link{color:#fff;font-size:.8rem;flex:none}
+body.app .card{margin:auto;flex:none;width:calc(100% - 32px)}
+.frame{flex:1;min-height:0;position:relative}
+.frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}

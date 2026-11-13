@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdn.jsdelivr.net https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.supabase.co https://cdn.jsdelivr.net; frame-src https://challenges.cloudflare.com; img-src 'self' data:; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Sign in | Ryan Carrillo</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/account/account.css">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
+<script type="module" src="/account/login.js"></script>
+</head>
+<body>
+<main class="card">
+  <a class="name" href="/">Ryan Carrillo <span>&nbsp;Accounts payable</span></a>
+  <h1 id="title">Sign in</h1>
+  <p class="lede" id="lede">Private area. Sign in to continue.</p>
+
+  <form id="form" method="post" novalidate>
+    <label class="fld" for="email">Email
+      <input id="email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254" required>
+    </label>
+    <label class="fld" for="password" id="pwRow">Password
+      <input id="password" name="password" type="password" autocomplete="current-password" maxlength="72" required>
+    </label>
+    <label class="fld" for="password2" id="pw2Row" hidden>Password again
+      <input id="password2" name="password2" type="password" autocomplete="new-password" maxlength="72">
+    </label>
+    <p class="hint" id="pwHint" hidden>At least 12 characters, with a letter and a number.</p>
+    <div id="captcha" class="captcha"></div>
+    <p class="msg" id="msg" role="alert" aria-live="assertive"></p>
+    <button class="btn btn-primary" type="submit" id="go">Sign in</button>
+  </form>
+
+  <p class="links">
+    <button class="link" type="button" data-mode="signin" hidden>Sign in</button>
+    <button class="link" type="button" data-mode="signup">Create an account</button>
+    <button class="link" type="button" data-mode="forgot">Forgot password?</button>
+  </p>
+  <noscript><p class="msg bad">This page needs JavaScript to sign you in.</p></noscript>
+</main>
+</body>
+</html>

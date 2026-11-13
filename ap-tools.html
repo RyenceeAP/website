@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en-CA" class="locked">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>AP Tools | Ryan Carrillo</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/account/account.css">
+<!-- The guard runs first: no session, no page. The tools themselves are not in this file. -->
+<script type="module" src="/account/guard.js"></script>
+<script type="module" src="/account/tools.js"></script>
+</head>
+<body class="app">
+<header class="strip">
+  <span class="who" id="who"></span>
+  <button class="link" type="button" id="out">Sign out</button>
+</header>
+<main class="card" id="panel" hidden>
+  <h1 id="pTitle">AP Tools</h1>
+  <p class="lede" id="pText"></p>
+  <button class="btn btn-primary" type="button" id="pGo" hidden></button>
+  <label class="fld" for="pKey" id="pKeyRow" hidden>Your public key (safe to share)
+    <textarea id="pKey" rows="7" readonly spellcheck="false"></textarea>
+  </label>
+  <button class="btn btn-quiet" type="button" id="pCopy" hidden>Copy public key</button>
+  <p class="msg" id="pMsg" role="status" aria-live="polite"></p>
+</main>
+<div class="frame" id="frame"></div>
+<noscript><p class="msg bad">This page needs JavaScript.</p></noscript>
+</body>
+</html>
