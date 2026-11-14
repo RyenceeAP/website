@@ -37,7 +37,7 @@ $("pCopy").addEventListener("click", async () => {
 
 async function myKey(user) {
   const { data, error } = await supabase.from("tool_keys").select("private_key, public_key").eq("user_id", user.id).maybeSingle();
-  if (error) throw new Error("keys");
+  if (error) { const e = new Error("keys"); e.code = String(error.code || error.status || ""); throw e; }
   return data;
 }
 
@@ -66,7 +66,14 @@ async function decrypt(file, row) {
 async function start(user) {
   let row;
   try { row = await myKey(user); }
-  catch (e) { show("AP Tools", "Couldn't check your access just now. Reload the page to try again."); return; }
+  catch (e) {
+    /* say which kind of failure it was (a code only, never account details), so setup problems can be told apart from a bad connection */
+    const code = /^[A-Za-z0-9]{1,12}$/.test(e.code || "") ? e.code : "";
+    const why = code === "PGRST205" || code === "42P01" || code === "404" ? "The tool_keys table wasn't found in Supabase. Run account/supabase-setup.sql in the SQL Editor, then reload."
+      : code === "42501" || code === "401" || code === "403" ? "Supabase refused access to the tool_keys table. Re-run account/supabase-setup.sql (it sets the permissions and policies), then reload."
+      : "Couldn't check your access just now. Reload the page to try again.";
+    show("AP Tools", why + (code ? " (code " + code + ")" : "")); return;
+  }
   if (!row) {
     show("Set up this account", "This account has no key yet. Create one to continue. It is made in this browser and stored in your own private row.",
       { action: "Create my key", run: () => createKey(user) });
