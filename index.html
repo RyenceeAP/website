@@ -69,6 +69,18 @@
   .name { font-weight: 700; font-size: 1.125rem; text-decoration: none; color: var(--ink); }
   .name span { font-weight: 400; color: var(--muted); }
   @media (max-width: 520px) { .name span { display: none; } }
+  .name { white-space: nowrap; }
+  .head-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  @media (max-width: 420px) {
+    .head-actions { gap: 8px; }
+    .head-actions .btn { padding: 10px 12px; font-size: .9375rem; }
+  }
+  @media (max-width: 360px) {
+    .site-head { gap: 8px; }
+    .name { font-size: 1rem; }
+    .head-actions { gap: 6px; }
+    .head-actions .btn { padding: 9px 9px; font-size: .875rem; }
+  }
 
   .btn {
     display: inline-block; text-decoration: none; font-weight: 600;
@@ -218,7 +230,10 @@
 
 <header class="wrap site-head">
   <a class="name" href="#top">Ryan Carrillo <span>&nbsp;Accounts payable</span></a>
-  <a class="btn btn-primary" href="#contact">Book a call</a>
+  <nav class="head-actions" aria-label="Site">
+    <a class="btn btn-quiet" href="/login.html">Log in</a>
+    <a class="btn btn-primary" href="#contact">Book a call</a>
+  </nav>
 </header>
 
 <main id="top">
