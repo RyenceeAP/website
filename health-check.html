@@ -105,7 +105,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <header>
     <h1>AP Health Check</h1>
-    <p class="ver">Version 0.9 · November 15, 2026</p>
+    <p class="ver">Version 0.10 · November 15, 2026</p>
     <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
   </header>
 
@@ -205,7 +205,8 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 <script>
 /* ===== Edit your details here ===== */
 const CONFIG={
-  name:"Ryan Carrillo",
+  name:"Ryan",
+  initials:"RC",
   role:"Accounts payable specialist",
   location:"Canada",
   email:"ryan@primexxconsulting.com",
@@ -427,7 +428,7 @@ const DAY=864e5;
 
 /* ---------- branding ---------- */
 (function brand(){
-  const ini=CONFIG.name.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+  const ini=CONFIG.initials||CONFIG.name.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase();
   $("initials").textContent=ini||"AP";
   $("hName").textContent=CONFIG.name;$("hRole").textContent=CONFIG.role;
   $("cName").textContent=CONFIG.name;$("cEmail").textContent=CONFIG.email;$("cLoc").textContent=CONFIG.location;
