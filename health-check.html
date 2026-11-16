@@ -91,7 +91,8 @@ tr.stopped td{color:var(--muted)}
 .contact .k{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .contact .v{font:500 .95rem var(--mono);user-select:all;overflow-wrap:anywhere}
 .cline{display:grid;gap:2px}
-.cline .row{justify-content:space-between;flex-wrap:nowrap}
+.cline .row{justify-content:flex-start;margin-top:4px}
+.contact a:not(.btn){color:var(--accent)}
 footer{font-size:.78rem;color:var(--muted);text-align:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -104,7 +105,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <header>
     <h1>AP Health Check</h1>
-    <p class="ver">Version 0.12 · November 15, 2026</p>
+    <p class="ver">Version 0.13 · November 15, 2026</p>
     <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
   </header>
 
@@ -177,7 +178,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <section class="book" id="book" aria-labelledby="bookH">
     <div>
-      <h2 id="bookH">Book a free 30-minute call</h2>
+      <h2 id="bookH">Book a free 15-minute call</h2>
       <p id="bio"></p>
       <p><strong>On the call we'll:</strong></p>
       <ul>
@@ -188,12 +189,12 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
       <p class="note">No cost and no obligation. If you'd like ongoing help afterwards, we offer monthly accounts payable support for small businesses.</p>
     </div>
     <div class="contact">
-      <div class="cline"><span class="k">Name</span><span class="v" id="cName" style="user-select:text"></span></div>
-      <div class="cline"><span class="k">Email</span><div class="row"><span class="v" id="cEmail"></span><button class="btn ghost sm" type="button" id="copyEmail">Copy</button></div></div>
+      <div class="cline"><span class="k">Email</span><div class="row"><a class="btn ghost sm" id="emailBtn" href="#" target="_blank" rel="noopener">Email us</a><button class="btn ghost sm" type="button" id="copyEmail">Copy address</button></div><span class="v" id="cEmail" hidden></span></div>
       <div class="cline" id="phoneLine"><span class="k">Phone</span><span class="v" id="cPhone"></span></div>
       <div class="cline"><span class="k">Based in</span><span class="v" id="cLoc" style="user-select:text;font-family:var(--sans)"></span></div>
       <a class="btn" id="bookBtn" href="#" target="_blank" rel="noopener">Pick a time</a>
       <p class="note" id="bookHint">Email us with a couple of times that work, and we'll send a calendar invite.</p>
+      <p class="note" id="longCall">Need more time? <a id="longBtn" href="#" target="_blank" rel="noopener">Book a 30-minute call</a> instead.</p>
     </div>
   </section>
 
@@ -210,7 +211,9 @@ const CONFIG={
   location:"Canada",
   email:"ryan@primexxconsulting.com",
   phone:"",
-  bookingUrl:"https://cal.com/ryan-carrillo-3ljd4a/30min",
+  bookingUrl:"https://cal.com/ryan-carrillo-3ljd4a/15min",
+  longCallUrl:"https://cal.com/ryan-carrillo-3ljd4a/30min",
+  emailSubject:"Accounts payable enquiry",
   bio:"We work in accounts payable every day: entering bills, chasing approvals, reconciling vendor statements and catching the mistakes that cost businesses money. We help small businesses keep their payables clean and their payment runs safe."
 };
 /* ================================== */
@@ -428,17 +431,20 @@ const DAY=864e5;
 /* ---------- branding ---------- */
 (function brand(){
   $("hName").textContent=CONFIG.company;$("hRole").textContent=CONFIG.tagline;
-  $("cName").textContent=CONFIG.name;$("cEmail").textContent=CONFIG.email;$("cLoc").textContent=CONFIG.location;
+  $("cEmail").textContent=CONFIG.email;$("emailBtn").href="mailto:"+CONFIG.email+"?subject="+encodeURIComponent(CONFIG.emailSubject);$("cLoc").textContent=CONFIG.location;
   $("bio").textContent=CONFIG.bio;
   if(CONFIG.phone)$("cPhone").textContent=CONFIG.phone;else $("phoneLine").hidden=true;
   if(CONFIG.bookingUrl){$("bookBtn").href=CONFIG.bookingUrl;$("bookHint").hidden=true}else $("bookBtn").hidden=true;
+  if(CONFIG.longCallUrl)$("longBtn").href=CONFIG.longCallUrl;else $("longCall").hidden=true;
 })();
 function flash(btn,txt,orig){btn.textContent=txt;setTimeout(()=>btn.textContent=orig,1600)}
-function copyText(txt,btn,orig){
-  try{navigator.clipboard.writeText(txt).then(()=>flash(btn,"Copied",orig)).catch(()=>flash(btn,"Copy blocked here",orig))}
-  catch(e){flash(btn,"Copy blocked here",orig)}
+function copyText(txt,btn,orig,onFail){
+  const fail=()=>{flash(btn,"Copy blocked here",orig);if(onFail)onFail()};
+  try{navigator.clipboard.writeText(txt).then(()=>flash(btn,"Copied",orig)).catch(fail)}
+  catch(e){fail()}
 }
-$("copyEmail").addEventListener("click",e=>copyText(CONFIG.email,e.currentTarget,"Copy"));
+/* if the clipboard is blocked, show the address so it can be selected by hand */
+$("copyEmail").addEventListener("click",e=>copyText(CONFIG.email,e.currentTarget,"Copy address",()=>{$("cEmail").hidden=false}));
 
 /* ---------- parsing ----------
    Amounts, dates, headers and vendor/reference keys come from APParse (the shared AP parsing block above).
