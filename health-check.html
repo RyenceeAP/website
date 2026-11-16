@@ -21,7 +21,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px
 main{max-width:820px;margin:0 auto;display:grid;gap:18px}
 .topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid var(--line)}
 .who{display:flex;gap:10px;align-items:center;min-width:0}
-.avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--onaccent);display:grid;place-items:center;font-weight:700;font-size:.85rem;flex:none}
 .who b{display:block;font-size:.95rem}.who span{display:block;font-size:.8rem;color:var(--muted)}
 h1{font-size:1.65rem;margin:0;font-weight:700;text-wrap:balance}
 h2{font-size:1.2rem;margin:0;text-wrap:balance}
@@ -99,13 +98,13 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
 <main>
   <div class="topbar">
-    <div class="who"><div class="avatar" id="initials" aria-hidden="true"></div><div><b id="hName"></b><span id="hRole"></span></div></div>
+    <div class="who"><div><b id="hName"></b><span id="hRole"></span></div></div>
     <a class="btn sm" href="#book">Book a free call</a>
   </div>
 
   <header>
     <h1>AP Health Check</h1>
-    <p class="ver">Version 0.10 · November 15, 2026</p>
+    <p class="ver">Version 0.11 · November 15, 2026</p>
     <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
   </header>
 
@@ -205,9 +204,9 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 <script>
 /* ===== Edit your details here ===== */
 const CONFIG={
+  company:"Primexx Consulting",
+  tagline:"Accounts payable specialists",
   name:"Ryan",
-  initials:"RC",
-  role:"Accounts payable specialist",
   location:"Canada",
   email:"ryan@primexxconsulting.com",
   phone:"",
@@ -428,9 +427,7 @@ const DAY=864e5;
 
 /* ---------- branding ---------- */
 (function brand(){
-  const ini=CONFIG.initials||CONFIG.name.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase();
-  $("initials").textContent=ini||"AP";
-  $("hName").textContent=CONFIG.name;$("hRole").textContent=CONFIG.role;
+  $("hName").textContent=CONFIG.company;$("hRole").textContent=CONFIG.tagline;
   $("cName").textContent=CONFIG.name;$("cEmail").textContent=CONFIG.email;$("cLoc").textContent=CONFIG.location;
   $("bio").textContent=CONFIG.bio;
   if(CONFIG.phone)$("cPhone").textContent=CONFIG.phone;else $("phoneLine").hidden=true;
