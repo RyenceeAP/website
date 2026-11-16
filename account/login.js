@@ -33,7 +33,7 @@ function say(text, kind) { msg.textContent = text || ""; msg.className = "msg" +
 function setMode(m) {
   mode = m; const M = MODES[m];
   $("title").textContent = M.title; $("lede").textContent = M.lede; go.textContent = M.button;
-  document.title = M.title + " | Ryan Carrillo";
+  document.title = M.title + " | Primexx Consulting";
   $("pwRow").hidden = m === "forgot";
   $("pw2Row").hidden = $("pwHint").hidden = m !== "signup";
   pw.autocomplete = m === "signup" ? "new-password" : "current-password";
