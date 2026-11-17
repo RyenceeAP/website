@@ -6,7 +6,7 @@
 <!-- The decrypted tools open in a sandboxed blob: frame, which inherits this policy, so it allows what the tools load too:
      their inline scripts and styles, SheetJS (jsDelivr), pdf.js and its worker (cdnjs, blob:) and IBM Plex (Google Fonts).
      connect-src is this site (for ap-tools.enc) and its Supabase project only, so nothing on the page can send data anywhere else with fetch. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://djjtshpbxlypoezeylcq.supabase.co https://cdn.jsdelivr.net; frame-src blob:; img-src 'self' data: blob:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://djjtshpbxlypoezeylcq.supabase.co; frame-src blob:; img-src 'self' data: blob:; base-uri 'none'; form-action 'none'">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>AP Tools | Primexx Consulting</title>

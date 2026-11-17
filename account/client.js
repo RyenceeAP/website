@@ -1,5 +1,6 @@
 // One Supabase client for every page. Uses only the project URL and the public anon key (see config.js).
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm";
+// supabase-js is self-hosted (account/vendor/, built by src/vendor-supabase/build.js in Ap-tools) so no CDN can change the code that holds the session.
+import { createClient } from "./vendor/supabase-js-2.119.0.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 export const configured = !/YOUR-PROJECT-REF/.test(SUPABASE_URL) && !/YOUR-PUBLIC-ANON-KEY/.test(SUPABASE_ANON_KEY);
