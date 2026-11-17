@@ -105,7 +105,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <header>
     <h1>AP Health Check</h1>
-    <p class="ver">Version 0.13 · November 15, 2026</p>
+    <p class="ver">Version 0.14 · November 16, 2026</p>
     <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
   </header>
 
@@ -201,7 +201,6 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
   <footer>The AP Health Check flags patterns worth reviewing. It isn't an audit and doesn't confirm fraud or errors.</footer>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ===== Edit your details here ===== */
 const CONFIG={
@@ -570,19 +569,37 @@ function snapCols(rows,hi,headers,map){
 /* ignore formatting that stretches a sheet to thousands of empty columns, and pick the first tab with a header row */
 function trimWs(w){if(!w||w.__trim)return;let R=0,C=0;for(const k in w){if(k[0]==="!")continue;const c=w[k];if(c==null||c.v===undefined||c.v==="")continue;const a=XLSX.utils.decode_cell(k);if(a.r>R)R=a.r;if(a.c>C)C=a.c}w["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:R,c:Math.min(C,80)}});w.__trim=true}
 function pickSheet(wb,roles){for(const n of wb.SheetNames){const w=wb.Sheets[n];trimWs(w);const rg=XLSX.utils.decode_range(w["!ref"]);rg.e.r=Math.min(rg.e.r,80);if(headerRow(XLSX.utils.sheet_to_json(w,{header:1,raw:true,defval:"",blankrows:true,range:rg}),roles)>=0)return w}const w=wb.Sheets[wb.SheetNames[0]];trimWs(w);return w}
+/* The spreadsheet reader (SheetJS CE 0.20.3, the official release as republished on npm) loads only when a visitor
+   picks or drops a file; the sample data needs none. The URL is pinned to one version and the integrity hash makes the
+   browser refuse any other bytes. To update: download the new dist/xlsx.full.min.js and recompute the hash with
+   openssl dgst -sha384 -binary xlsx.full.min.js | openssl base64 -A */
+const XLSX_URL="https://cdn.jsdelivr.net/npm/@e965/xlsx@0.20.3/dist/xlsx.full.min.js",
+      XLSX_SRI="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT";
+let xlsxLoading=null;
+function needXLSX(){
+  if(typeof XLSX!=="undefined")return Promise.resolve();
+  return xlsxLoading||(xlsxLoading=new Promise((ok,no)=>{
+    const s=document.createElement("script");
+    s.src=XLSX_URL;s.integrity=XLSX_SRI;s.crossOrigin="anonymous";s.referrerPolicy="no-referrer";
+    s.onload=()=>typeof XLSX!=="undefined"?ok():no();
+    s.onerror=()=>{s.remove();no()};
+    document.head.append(s)}).catch(e=>{xlsxLoading=null;throw e}));   /* a failed load can be tried again */
+}
 function readFile(f,cb,roles){
   if(!f)return;
-  const vend=roles===VROLES,errId=vend?"verr":"err";
-  if(typeof XLSX==="undefined"){showErr(errId,"The spreadsheet reader didn't load. Check your internet connection and reload the page.");return}
-  const st=vend?$("vsource"):$("source");st.textContent=`Reading ${f.name}…`;
-  const r=new FileReader();
-  r.onload=e=>setTimeout(()=>{try{
-    /* CSV cells stay as text so dates like 03/04/2026 are read by the day/month rules, not guessed by the reader */
-    const wb=XLSX.read(new Uint8Array(e.target.result),{type:"array",raw:/\.(csv|tsv|txt)$/i.test(f.name)});
-    const ws=pickSheet(wb,roles||ROLES);cb(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:"",blankrows:true}),f.name)}
-    catch(err){showErr(errId,"Couldn't read that file. Save it as .xlsx or .csv and try again.");st.textContent=vend?"No vendor list loaded.":""}},30);
-  r.onerror=()=>showErr(errId,"Couldn't open that file. If it's stored online, download it to this device first and try again.");
+  const vend=roles===VROLES,errId=vend?"verr":"err",st=vend?$("vsource"):$("source"),before=st.innerHTML,idle=vend?"No vendor list loaded.":"";
+  st.textContent=`Reading ${f.name}…`;
+  /* the file is read straight away (before the picker is reset) while the spreadsheet reader loads */
+  const r=new FileReader(),bytes=new Promise((ok,no)=>{r.onload=e=>ok(e.target.result);r.onerror=no});
+  bytes.catch(()=>{});
   r.readAsArrayBuffer(f);
+  needXLSX().then(()=>bytes.then(buf=>setTimeout(()=>{try{
+    /* CSV cells stay as text so dates like 03/04/2026 are read by the day/month rules, not guessed by the reader */
+    const wb=XLSX.read(new Uint8Array(buf),{type:"array",raw:/\.(csv|tsv|txt)$/i.test(f.name)});
+    const ws=pickSheet(wb,roles||ROLES);cb(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:"",blankrows:true}),f.name)}
+    catch(err){showErr(errId,"Couldn't read that file. Save it as .xlsx or .csv and try again.");st.textContent=idle}},30),
+    ()=>{showErr(errId,"Couldn't open that file. If it's stored online, download it to this device first and try again.");st.innerHTML=before}),
+  ()=>{showErr(errId,"The spreadsheet reader didn't load. Check your internet connection and try again.");st.innerHTML=before});
 }
 function bills(){
   const get=(r,k)=>mapping[k]===undefined?"":r[mapping[k]];
