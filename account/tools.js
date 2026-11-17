@@ -93,6 +93,15 @@ async function start(user) {
 
   blobUrl = URL.createObjectURL(new Blob([page], { type: "text/html;charset=utf-8" }));
   const f = document.createElement("iframe");
+  /* The tools run sandboxed, in an origin of their own. A blob: page would otherwise share this site's origin, so any script in
+     the tools (or a library they load) could read the saved Supabase session and this account's key row. No allow-same-origin:
+     the tools can't reach this page, its storage or the session. They keep what they need: their scripts, file downloads,
+     printing (allow-modals) and the clipboard. They also live under this page's Content-Security-Policy, which a blob: page inherits. */
+  f.setAttribute("sandbox", "allow-scripts allow-downloads allow-modals");
+  f.allow = "clipboard-write";
+  f.referrerPolicy = "no-referrer";
+  /* once loaded, the blob URL is no longer needed; revoking it means nothing else can open the decrypted page by its address */
+  f.addEventListener("load", () => { if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = ""; } }, { once: true });
   f.title = "AP Tools"; f.src = blobUrl + (/^#[a-z0-9-]+$/.test(location.hash) ? location.hash : "");
   frameBox.replaceChildren(f); panel.hidden = true; frameBox.hidden = false;
 }
