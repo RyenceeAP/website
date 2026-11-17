@@ -2,6 +2,14 @@
 <html lang="en-CA">
 <head>
 <meta charset="utf-8">
+<!-- CSP: the one inline script (the Cal.com loader at the bottom of the page) is allowed by its
+     sha256 hash; 'strict-dynamic' then trusts the embed.js it adds. Edit that script and the hash
+     must be recomputed: base64 of sha256 over the exact text between <script> and </script>.
+     https://app.cal.com in script-src is only a fallback for browsers without 'strict-dynamic'.
+     Cal's embed.js injects <style> tags and loads its font from cal.com, so styles need
+     'unsafe-inline' and font-src needs https://cal.com. No Trusted Types: embed.js writes innerHTML. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-jq1EHuXuFcUhChX/duJAE6NF2zitPFzjSo9f65u1TGw=' 'strict-dynamic' https://app.cal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com https://cal.com; frame-src https://app.cal.com; connect-src https://app.cal.com; img-src 'self' data:; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Primexx Consulting | Accounts payable for Ottawa small businesses</title>
 <meta name="description" content="Primexx Consulting handles bills, supplier statements and payment runs for Ottawa contractors, salons and small shops. Flat monthly plans from $200.">
