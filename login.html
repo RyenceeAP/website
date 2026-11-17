@@ -29,10 +29,6 @@
     <label class="fld" for="password" id="pwRow">Password
       <input id="password" name="password" type="password" autocomplete="current-password" maxlength="72" required>
     </label>
-    <label class="fld" for="password2" id="pw2Row" hidden>Password again
-      <input id="password2" name="password2" type="password" autocomplete="new-password" maxlength="72">
-    </label>
-    <p class="hint" id="pwHint" hidden>At least 12 characters, with a letter and a number.</p>
     <div id="captcha" class="captcha"></div>
     <p class="msg" id="msg" role="alert" aria-live="assertive"></p>
     <button class="btn btn-primary" type="submit" id="go">Sign in</button>
@@ -40,7 +36,6 @@
 
   <p class="links">
     <button class="link" type="button" data-mode="signin" hidden>Sign in</button>
-    <button class="link" type="button" data-mode="signup">Create an account</button>
     <button class="link" type="button" data-mode="forgot">Forgot password?</button>
   </p>
   <noscript><p class="msg bad">This page needs JavaScript to sign you in.</p></noscript>

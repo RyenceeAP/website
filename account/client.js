@@ -37,7 +37,7 @@ export function emailProblem(v) {
   if (v.length > 254 || !EMAIL_RE.test(v)) return "Enter a valid email address.";
   return "";
 }
-/* For a NEW password (sign-up and reset). Sign-in only checks that something was typed. */
+/* For a NEW password (password reset). Sign-in only checks that something was typed. */
 export function newPasswordProblem(p, again) {
   if (p.length < 12) return "Use at least 12 characters for the password.";
   if (p.length > 72) return "Use 72 characters or fewer for the password.";

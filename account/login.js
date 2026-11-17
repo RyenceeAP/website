@@ -1,30 +1,28 @@
-// Sign in, create an account and ask for a password-reset link: one form, three modes.
+// Sign in and ask for a password-reset link: one form, two modes.
+// There is no sign-up here on purpose: the site has one account, and new sign-ups are also turned off in Supabase.
 // Rules this file keeps:
 //  - email and password are checked here before anything is sent to Supabase;
 //  - whatever Supabase answers, the visitor is never told whether an email address has an account;
 //  - text is only ever put on the page with textContent (never innerHTML), so nothing typed or returned can run as markup;
 //  - every request carries a fresh Turnstile token, which Supabase checks on its side; tokens are single-use, so the widget is reset after each try.
-import { supabase, configured, safeNext, errorKind, emailProblem, newPasswordProblem } from "./client.js";
+import { supabase, configured, safeNext, errorKind, emailProblem } from "./client.js";
 import { TURNSTILE_SITE_KEY } from "./config.js";
 
 const $ = id => document.getElementById(id);
-const form = $("form"), email = $("email"), pw = $("password"), pw2 = $("password2"), msg = $("msg"), go = $("go");
+const form = $("form"), email = $("email"), pw = $("password"), msg = $("msg"), go = $("go");
 const next = safeNext(new URLSearchParams(location.search).get("next"));
 
 const MODES = {
   signin: { title: "Sign in", lede: "Private area. Sign in to continue.", button: "Sign in", busy: "Signing in…" },
-  signup: { title: "Create an account", lede: "You'll get an email with a link to confirm the address.", button: "Create account", busy: "Creating…" },
   forgot: { title: "Reset your password", lede: "Enter your email and we'll send a link to choose a new password.", button: "Send reset link", busy: "Sending…" },
 };
 const TEXT = {
-  badLogin: "Invalid email or password. If you just created the account, confirm your email first.",
-  signedUp: "If that address can be registered, a confirmation email is on its way. Open the link in it, then sign in.",
+  badLogin: "Invalid email or password.",
   resetSent: "If there's an account for that email, a reset link is on its way.",
   rate: "Too many attempts. Wait a few minutes and try again.",
   captcha: "The security check didn't pass. Please try again.",
   noCaptcha: "Please complete the security check first.",
   network: "Couldn't reach the sign-in service. Check your connection and try again.",
-  weak: "That password isn't strong enough. Try a longer, less common one.",
   setup: "Sign-in isn't set up yet.",
 };
 let mode = "signin", busy = false, widget = null;
@@ -35,15 +33,14 @@ function setMode(m) {
   $("title").textContent = M.title; $("lede").textContent = M.lede; go.textContent = M.button;
   document.title = M.title + " | Primexx Consulting";
   $("pwRow").hidden = m === "forgot";
-  $("pw2Row").hidden = $("pwHint").hidden = m !== "signup";
-  pw.autocomplete = m === "signup" ? "new-password" : "current-password";
-  pw.value = pw2.value = "";
+  pw.required = m === "signin";
+  pw.value = "";
   document.querySelectorAll("[data-mode]").forEach(b => { b.hidden = b.dataset.mode === m; });
   say("");
 }
 document.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
 
-/* Turnstile: drawn once the script has loaded; the same widget serves all three modes. */
+/* Turnstile: drawn once the script has loaded; the same widget serves both modes. */
 function drawCaptcha(tries = 0) {
   if (window.turnstile && typeof window.turnstile.render === "function") {
     try { widget = window.turnstile.render("#captcha", { sitekey: TURNSTILE_SITE_KEY, action: "account", theme: "light" }); } catch (e) {}
@@ -62,7 +59,6 @@ async function submit() {
   let problem = emailProblem(address);
   if (!problem && mode === "signin" && !password) problem = "Enter your password.";
   if (!problem && mode === "signin" && password.length > 72) problem = TEXT.badLogin;
-  if (!problem && mode === "signup") problem = newPasswordProblem(password, pw2.value);
   if (problem) { say(problem, "bad"); return; }
   const token = captchaToken();
   if (!token) { say(TEXT.noCaptcha, "bad"); return; }
@@ -73,9 +69,6 @@ async function submit() {
     if (mode === "signin") {
       const r = await supabase.auth.signInWithPassword({ email: address, password, options: { captchaToken: token } });
       error = r.error; session = r.data && r.data.session;
-    } else if (mode === "signup") {
-      const r = await supabase.auth.signUp({ email: address, password, options: { captchaToken: token, emailRedirectTo: location.origin + "/login.html" } });
-      error = r.error;
     } else {
       const r = await supabase.auth.resetPasswordForEmail(address, { captchaToken: token, redirectTo: location.origin + "/reset-password.html" });
       error = r.error;
@@ -90,10 +83,6 @@ async function submit() {
     if (error || !session) { pw.value = ""; say(TEXT.badLogin, "bad"); return; }
     location.replace(next); return;
   }
-  if (mode === "signup") {
-    if (kind === "weak") { say(TEXT.weak, "bad"); return; }
-    pw.value = pw2.value = ""; say(TEXT.signedUp, "good"); return;
-  }
   say(TEXT.resetSent, "good");
 }
 
@@ -105,7 +94,7 @@ form.addEventListener("submit", async e => {
   try { await submit(); } finally { busy = false; go.disabled = false; go.textContent = MODES[mode].button; }
 });
 
-/* Already signed in (or just arrived from the confirmation email): go straight on. */
+/* Already signed in: go straight on. */
 if (configured) {
   supabase.auth.getSession().then(({ data }) => { if (data && data.session) location.replace(next); }).catch(() => {});
   supabase.auth.onAuthStateChange((event, session) => { if (event === "SIGNED_IN" && session && !busy) location.replace(next); });
