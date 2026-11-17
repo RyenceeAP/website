@@ -55,8 +55,10 @@ details.skips{font-size:.84rem;background:var(--bg);border-radius:6px;padding:8p
 details.skips ul{margin:6px 0 0;padding-left:18px;display:grid;gap:2px;overflow-wrap:anywhere}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media (max-width:600px){.tiles{grid-template-columns:1fr}}
-.tile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:2px;border-top:3px solid transparent}
-.tile[aria-selected="true"]{border-top-color:var(--accent);background:var(--tint)}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 14px 12px;display:grid;gap:2px;position:relative}
+.tile[aria-selected="true"]{background:var(--tint)}
+.tile[aria-selected="true"]::after{content:"";position:absolute;inset:-1px -1px auto;height:0;border-top:4px solid var(--accent);border-radius:10px 10px 0 0;pointer-events:none}
+@media (forced-colors:active){.tile[aria-selected="true"]::after{border-top-color:Highlight}}
 .tile .t{font-size:.74rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .tile b{font:500 1.35rem var(--mono);font-variant-numeric:tabular-nums}
 [data-body]{min-width:0}
@@ -128,7 +130,7 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
 
   <header>
     <h1>AP Health Check</h1>
-    <p class="ver">Version 0.15 · November 16, 2026</p>
+    <p class="ver">Version 0.16 · November 16, 2026</p>
     <p class="lede">Three free checks on your bill list: bills that may have been paid twice, signs of payment fraud, and recurring charges that quietly went up. Drop in one export and all three run at once.</p>
   </header>
 
@@ -152,9 +154,9 @@ footer{font-size:.78rem;color:var(--muted);text-align:center}
   </section>
 
   <div class="tiles" role="tablist" aria-label="Reports">
-    <button class="tile" role="tab" id="tab-duplicates" data-tab="duplicates" aria-controls="p-duplicates"><span class="t">Duplicate bills</span><b id="tDup">$0</b><span class="s" id="tDupS">possibly paid twice</span></button>
-    <button class="tile" role="tab" id="tab-red-flags" data-tab="red-flags" aria-controls="p-red-flags"><span class="t">Fraud red flags</span><b id="tFr">0</b><span class="s" id="tFrS">vendors to look at</span></button>
-    <button class="tile" role="tab" id="tab-recurring" data-tab="recurring" aria-controls="p-recurring"><span class="t">Recurring charges</span><b id="tRc">$0</b><span class="s" id="tRcS">per year</span></button>
+    <button type="button" class="tile" role="tab" id="tab-duplicates" data-tab="duplicates" aria-selected="true"><span class="t">Duplicate bills</span><b id="tDup">$0</b><span class="s" id="tDupS">possibly paid twice</span></button>
+    <button type="button" class="tile" role="tab" id="tab-red-flags" data-tab="red-flags" aria-selected="false" tabindex="-1"><span class="t">Fraud red flags</span><b id="tFr">0</b><span class="s" id="tFrS">vendors to look at</span></button>
+    <button type="button" class="tile" role="tab" id="tab-recurring" data-tab="recurring" aria-selected="false" tabindex="-1"><span class="t">Recurring charges</span><b id="tRc">$0</b><span class="s" id="tRcS">per year</span></button>
   </div>
 
   <section class="report" id="p-duplicates" role="tabpanel" aria-labelledby="tab-duplicates">
@@ -839,8 +841,14 @@ function run(only){
 
 /* ---------- tabs ---------- */
 const TABS=["duplicates","red-flags","recurring"];
-function show(t){TABS.forEach(x=>{$("p-"+x).hidden=x!==t;$("tab-"+x).setAttribute("aria-selected",x===t)})}
-document.querySelectorAll(".tile").forEach(b=>b.addEventListener("click",()=>{show(b.dataset.tab);try{history.replaceState(null,"","#"+b.dataset.tab)}catch(e){}}));
+function show(t){TABS.forEach(x=>{const tab=$("tab-"+x),on=x===t;$("p-"+x).hidden=!on;tab.setAttribute("aria-selected",on);tab.tabIndex=on?0:-1})}
+function pick(t){show(t);try{history.replaceState(null,"","#"+t)}catch(e){}}
+document.querySelectorAll(".tile").forEach(b=>b.addEventListener("click",()=>pick(b.dataset.tab)));
+/* arrow keys, Home and End move between tabs; selection follows focus. Tab leaves the list from the selected tab. */
+document.querySelector('[role="tablist"]').addEventListener("keydown",e=>{
+  const i=TABS.indexOf(e.target.dataset.tab);if(i<0||e.altKey||e.ctrlKey||e.metaKey)return;
+  const n=TABS.length,k=e.key,j=k==="ArrowRight"||k==="ArrowDown"?(i+1)%n:k==="ArrowLeft"||k==="ArrowUp"?(i+n-1)%n:k==="Home"?0:k==="End"?n-1:-1;
+  if(j<0)return;e.preventDefault();pick(TABS[j]);$("tab-"+TABS[j]).focus()});
 window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(TABS.includes(h))show(h)});
 
 /* ---------- copy report ---------- */
